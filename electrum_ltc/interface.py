@@ -372,9 +372,17 @@ class Interface(Logger):
         self.blockchain = None  # type: Optional[Blockchain]
         self._requested_chunks = set()  # type: Set[int]
         self.network = network
-        self.proxy = MySocksProxy.from_proxy_dict(proxy)
         self.session = None  # type: Optional[NotificationSession]
         self._ipaddr_bucket = None
+        # Set up proxy.
+        # - for servers running on localhost, the proxy is not used. If user runs their own server
+        #   on same machine, this lets them enable the proxy (which is used for e.g. FX rates).
+        #   note: we could maybe relax this further and bypass the proxy for all private
+        #         addresses...? e.g. 192.168.x.x
+        if util.is_localhost(server.host):
+            self.logger.info(f"looks like localhost: not using proxy for this server")
+            proxy = None
+        self.proxy = MySocksProxy.from_proxy_dict(proxy)
 
         # Latest block header and corresponding height, as claimed by the server.
         # Note that these values are updated before they are verified.
@@ -598,6 +606,8 @@ class Interface(Logger):
         self.logger.info("cert fingerprint verification passed")
 
     async def get_block_header(self, height, assert_mode):
+        if not is_non_negative_integer(height):
+            raise Exception(f"{repr(height)} is not a block height")
         self.logger.info(f'requesting block header {height} in mode {assert_mode}')
         # use lower timeout as we usually have network.bhi_lock here
         timeout = self.network.get_network_timeout_seconds(NetworkTimeout.Urgent)
