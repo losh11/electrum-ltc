@@ -262,14 +262,6 @@ class CoinSpot(ExchangeBase):
         return {'AUD': Decimal(json['prices']['ltc']['last'])}
 
 
-class GoCoin(ExchangeBase):
-
-    async def get_rates(self, ccy):
-        json = await self.get_json('x.g0cn.com', '/prices')
-        ltc_prices = json['prices']['LTC']
-        return dict([(r, Decimal(ltc_prices[r])) for r in ltc_prices])
-
-
 class HitBTC(ExchangeBase):
 
     async def get_rates(self, ccy):
@@ -307,8 +299,8 @@ class Kraken(ExchangeBase):
 class OKCoin(ExchangeBase):
 
     async def get_rates(self, ccy):
-        json = await self.get_json('www.okcoin.com', '/api/v1/ticker.do?symbol=ltc_usd')
-        return {'USD': Decimal(json['ticker']['last'])}
+        json = await self.get_json('www.okcoin.com', '/api/spot/v3/instruments/LTC-USD/ticker')
+        return {'USD': Decimal(json['last'])}
 
 
 class MercadoBitcoin(ExchangeBase):
@@ -324,20 +316,6 @@ class TheRockTrading(ExchangeBase):
         json = await self.get_json('api.therocktrading.com',
                                    '/v1/funds/LTCEUR/ticker')
         return {'EUR': Decimal(json['last'])}
-
-
-class QuadrigaCX(ExchangeBase):
-
-    async def get_rates(self,ccy):
-        json = await self.get_json('api.quadrigacx.com', '/v2/ticker?book=ltc_cad')
-        return {'CAD': Decimal(json['last'])}
-
-
-class Bitragem(ExchangeBase):
-
-    async def get_rates(self,ccy):
-        json = await self.get_json('api.bitragem.com', '/v1/index?asset=LTC&market=BRL')
-        return {'BRL': Decimal(json['response']['index'])}
 
 
 def dictinvert(d):
