@@ -40,7 +40,7 @@ COMMITMENT_TX_WEIGHT = 724
 HTLC_OUTPUT_WEIGHT = 172
 
 LN_MAX_FUNDING_SAT = pow(2, 24) - 1
-DUST_LIMIT_MAX = 1000
+DUST_LIMIT_MAX = 10620
 
 # dummy address for fee estimation of funding tx
 def ln_dummy_address():
