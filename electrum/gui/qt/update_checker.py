@@ -16,21 +16,20 @@ from electrum.i18n import _
 from electrum.util import make_aiohttp_session
 from electrum.logging import Logger
 from electrum.network import Network
-from electrum._vendor.distutils.version import StrictVersion
+from electrum._vendor.distutils.version import LooseVersion
 
 
 class UpdateCheck(QDialog, Logger):
-    url = "https://electrum.org/version"
-    download_url = "https://electrum.org/#download"
+    url = "https://electrum-ltc.org/version"
+    download_url = "https://electrum-ltc.org/#download"
 
     VERSION_ANNOUNCEMENT_SIGNING_KEYS = (
-        "13xjmVAB1EATPP8RshTE8S8sNwwSUM9p1P",  # ThomasV (since 3.3.4)
-        "1Nxgk6NTooV4qZsX5fdqQwrLjYcsQZAfTg",  # ghost43 (since 4.1.2)
+        "LWZzbv5SbiRRjBDL6dUYRdBX9Dp89RDZgG",
     )
 
     def __init__(self, *, latest_version=None):
         QDialog.__init__(self)
-        self.setWindowTitle('Electrum - ' + _('Update Check'))
+        self.setWindowTitle('Electrum-LTC - ' + _('Update Check'))
         self.content = QVBoxLayout()
         self.content.setContentsMargins(*[10]*4)
 
@@ -48,7 +47,8 @@ class UpdateCheck(QDialog, Logger):
         self.content.addWidget(self.pb)
 
         versions = QHBoxLayout()
-        versions.addWidget(QLabel(_("Current version: {}".format(version.ELECTRUM_VERSION))))
+        versions.addWidget(
+            QLabel(_("Current version: {}".format(version.ELECTRUM_VERSION))))
         self.latest_version_label = QLabel(_("Latest version: {}".format(" ")))
         versions.addWidget(self.latest_version_label)
         self.content.addLayout(versions)
@@ -71,27 +71,36 @@ class UpdateCheck(QDialog, Logger):
 
     def on_retrieval_failed(self):
         self.heading_label.setText('<h2>' + _("Update check failed") + '</h2>')
-        self.detail_label.setText(_("Sorry, but we were unable to check for updates. Please try again later."))
+        self.detail_label.setText(
+            _("Sorry, but we were unable to check for updates. Please try again later."))
         self.pb.hide()
 
     @staticmethod
     def is_newer(latest_version):
-        return latest_version > StrictVersion(version.ELECTRUM_VERSION)
+        return latest_version > LooseVersion(version.ELECTRUM_VERSION)
 
     def update_view(self, latest_version=None):
         if latest_version:
             self.pb.hide()
-            self.latest_version_label.setText(_("Latest version: {}".format(latest_version)))
+            self.latest_version_label.setText(
+                _("Latest version: {}".format(latest_version)))
             if self.is_newer(latest_version):
-                self.heading_label.setText('<h2>' + _("There is a new update available") + '</h2>')
-                url = "<a href='{u}'>{u}</a>".format(u=UpdateCheck.download_url)
-                self.detail_label.setText(_("You can download the new version from {}.").format(url))
+                self.heading_label.setText(
+                    '<h2>' + _("There is a new update available") + '</h2>')
+                url = "<a href='{u}'>{u}</a>".format(
+                    u=UpdateCheck.download_url)
+                self.detail_label.setText(
+                    _("You can download the new version from {}.").format(url))
             else:
-                self.heading_label.setText('<h2>' + _("Already up to date") + '</h2>')
-                self.detail_label.setText(_("You are already on the latest version of Electrum."))
+                self.heading_label.setText(
+                    '<h2>' + _("Already up to date") + '</h2>')
+                self.detail_label.setText(
+                    _("You are already on the latest version of Electrum."))
         else:
-            self.heading_label.setText('<h2>' + _("Checking for updates...") + '</h2>')
-            self.detail_label.setText(_("Please wait while Electrum checks for available updates."))
+            self.heading_label.setText(
+                '<h2>' + _("Checking for updates...") + '</h2>')
+            self.detail_label.setText(
+                _("Please wait while Electrum checks for available updates."))
 
 
 class UpdateCheckThread(QThread, Logger):
@@ -125,18 +134,21 @@ class UpdateCheckThread(QThread, Logger):
                     msg = version_num.encode('utf-8')
                     if ecc.verify_message_with_address(address=address, sig65=sig, message=msg,
                                                        net=constants.BitcoinMainnet):
-                        self.logger.info(f"valid sig for version announcement '{version_num}' from address '{address}'")
+                        self.logger.info(
+                            f"valid sig for version announcement '{version_num}' from address '{address}'")
                         break
                 else:
-                    raise Exception('no valid signature for version announcement')
-                return StrictVersion(version_num.strip())
+                    raise Exception(
+                        'no valid signature for version announcement')
+                return LooseVersion(version_num.strip())
 
     def run(self):
         if not self.network:
             self.failed.emit()
             return
         try:
-            update_info = asyncio.run_coroutine_threadsafe(self.get_update_info(), self.network.asyncio_loop).result()
+            update_info = asyncio.run_coroutine_threadsafe(
+                self.get_update_info(), self.network.asyncio_loop).result()
         except Exception as e:
             self.logger.info(f"got exception: '{repr(e)}'")
             self.failed.emit()

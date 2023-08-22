@@ -63,6 +63,7 @@ Builder.load_string('''
                         if root.on_close: root.on_close()
 ''')
 
+
 class QRDialog(Factory.Popup):
 
     def __init__(

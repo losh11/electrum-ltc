@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from electrum.gui.qt.main_window import ElectrumWindow
     from electrum.wallet import Abstract_Wallet
 
+
 class QLabelsSignalObject(QObject):
     labels_changed_signal = pyqtSignal(object)
 
@@ -70,7 +71,8 @@ class Plugin(LabelsPlugin):
 
     def done_processing_error(self, dialog, exc_info):
         self.logger.error("Error synchronising labels", exc_info=exc_info)
-        dialog.show_error(_("Error synchronising labels") + f':\n{repr(exc_info[1])}')
+        dialog.show_error(_("Error synchronising labels") +
+                          f':\n{repr(exc_info[1])}')
 
     @hook
     def init_qt(self, gui: 'ElectrumGui'):

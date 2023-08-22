@@ -4,14 +4,17 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules, coll
 
 import sys, os
 
-PACKAGE='Electrum'
+PACKAGE='Electrum-LTC'
 PYPKG='electrum'
 MAIN_SCRIPT='run_electrum'
 ICONS_FILE=PYPKG + '/gui/icons/electrum.icns'
 
 
-VERSION = os.environ.get("ELECTRUM_VERSION")
-if not VERSION:
+for i, x in enumerate(sys.argv):
+    if x == '--name':
+        VERSION = sys.argv[i+1]
+        break
+else:
     raise Exception('no version')
 
 electrum = os.path.abspath(".") + "/"
@@ -29,7 +32,7 @@ hiddenimports += collect_submodules('ckcc')
 hiddenimports += collect_submodules('bitbox02')
 hiddenimports += ['electrum.plugins.jade.jade']
 hiddenimports += ['electrum.plugins.jade.jadepy.jade']
-hiddenimports += ['PyQt5.QtPrintSupport']  # needed by Revealer
+hiddenimports += ['_scrypt', 'PyQt5.QtPrintSupport']  # needed by Revealer
 
 datas = [
     (electrum + PYPKG + '/*.json', PYPKG),
@@ -48,9 +51,9 @@ datas += collect_data_files('ckcc')
 datas += collect_data_files('bitbox02')
 
 # Add libusb so Trezor and Safe-T mini will work
-binaries = [(electrum + "electrum/libusb-1.0.dylib", ".")]
-binaries += [(electrum + "electrum/libsecp256k1.0.dylib", ".")]
-binaries += [(electrum + "electrum/libzbar.0.dylib", ".")]
+binaries = [(electrum + "contrib/osx/libusb-1.0.dylib", ".")]
+binaries += [(electrum + "contrib/osx/libsecp256k1.0.dylib", ".")]
+binaries += [(electrum + "contrib/osx/libzbar.0.dylib", ".")]
 
 # Workaround for "Retro Look":
 binaries += [b for b in collect_dynamic_libs('PyQt5') if 'macstyle' in b[0]]
@@ -64,6 +67,7 @@ a = Analysis([electrum+ MAIN_SCRIPT,
               electrum+'electrum/wallet.py',
               electrum+'electrum/simple_config.py',
               electrum+'electrum/bitcoin.py',
+              electrum+'electrum/blockchain.py',
               electrum+'electrum/dnssec.py',
               electrum+'electrum/commands.py',
               electrum+'electrum/plugins/cosigner_pool/qt.py',
@@ -107,7 +111,6 @@ exe = EXE(
     upx=True,
     icon=electrum+ICONS_FILE,
     console=False,
-    target_arch='x86_64',  # TODO investigate building 'universal2'
 )
 
 app = BUNDLE(
@@ -121,13 +124,6 @@ app = BUNDLE(
     bundle_identifier=None,
     info_plist={
         'NSHighResolutionCapable': 'True',
-        'NSSupportsAutomaticGraphicsSwitching': 'True',
-        'CFBundleURLTypes':
-            [{
-                'CFBundleURLName': 'bitcoin',
-                'CFBundleURLSchemes': ['bitcoin', 'lightning', ],
-            }],
-        'LSMinimumSystemVersion': '10.13.0',
-        'NSCameraUsageDescription': 'Electrum would like to access the camera to scan for QR codes',
+        'NSSupportsAutomaticGraphicsSwitching': 'True'
     },
 )

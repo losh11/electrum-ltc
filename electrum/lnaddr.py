@@ -246,7 +246,7 @@ def lnencode(addr: 'LnAddr', privkey) -> str:
     # both.
     if 'd' in tags_set and 'h' in tags_set:
         raise ValueError("Cannot include both 'd' and 'h'")
-    if 'd' not in tags_set and 'h' not in tags_set:
+    if not 'd' in tags_set and not 'h' in tags_set:
         raise ValueError("Must include either 'd' or 'h'")
 
     # We actually sign the hrp, then data (padded to 8 bits with zeroes).
@@ -287,7 +287,7 @@ class LnAddr(object):
             return
         assert isinstance(value, Decimal)
         if value.is_nan() or not (0 <= value <= TOTAL_COIN_SUPPLY_LIMIT_IN_BTC):
-            raise LnInvoiceException(f"amount is out-of-bounds: {value!r} BTC")
+            raise LnInvoiceException(f"amount is out-of-bounds: {value!r} LTC")
         if value * 10**12 % 10:
             # max resolution is millisatoshi
             raise LnInvoiceException(f"Cannot encode {value!r}: too many decimal places")

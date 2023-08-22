@@ -4,6 +4,7 @@ from kivy.core import core_select_lib
 
 __all__ = ('NFCBase', 'NFCScanner')
 
+
 class NFCBase(Widget):
     ''' This is the base Abstract definition class that the actual hardware dependent
     implementations would be based on. If you want to define a feature that is
@@ -12,7 +13,7 @@ class NFCBase(Widget):
     '''
 
     payload = ObjectProperty(None)
-    '''This is the data gotten from the tag.
+    '''This is the data gotten from the tag. 
     '''
 
     def nfc_init(self):
@@ -41,6 +42,7 @@ class NFCBase(Widget):
         pass
 
 # load NFCScanner implementation
+
 
 NFCScanner = core_select_lib('nfc_manager', (
     # keep the dummy implementation as the last one to make it the fallback provider.NFCScanner = core_select_lib('nfc_scanner', (

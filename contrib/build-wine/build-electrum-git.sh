@@ -1,6 +1,6 @@
 #!/bin/bash
 
-NAME_ROOT=electrum
+NAME_ROOT=electrum-ltc
 
 export PYTHONDONTWRITEBYTECODE=1  # don't create __pycache__/ folders with .pyc files
 
@@ -10,42 +10,41 @@ set -e
 
 . "$CONTRIB"/build_tools_util.sh
 
-pushd $WINEPREFIX/drive_c/electrum
+pushd $WINEPREFIX/drive_c/electrum-ltc
 
-VERSION=$(git describe --tags --dirty --always)
+VERSION=`git describe --tags --dirty --always`
 info "Last commit: $VERSION"
 
 # Load electrum-locale for this release
 git submodule update --init
 
-LOCALE="$WINEPREFIX/drive_c/electrum/electrum/locale/"
+pushd ./contrib/deterministic-build/electrum-ltc-locale
+if ! which msgfmt > /dev/null 2>&1; then
+    fail "Please install gettext"
+fi
 # we want the binary to have only compiled (.mo) locale files; not source (.po) files
-rm -rf "$LOCALE"
-"$CONTRIB/build_locale.sh" "$CONTRIB/deterministic-build/electrum-locale/locale/" "$LOCALE"
+rm -rf "$WINEPREFIX/drive_c/electrum-ltc/electrum/locale/"
+for i in ./locale/*; do
+    dir="$WINEPREFIX/drive_c/electrum-ltc/electrum/$i/LC_MESSAGES"
+    mkdir -p $dir
+    msgfmt --output-file="$dir/electrum.mo" "$i/electrum.po" || true
+done
+popd
 
 find -exec touch -h -d '2000-11-11T11:11:11+00:00' {} +
 popd
 
-
-# opt out of compiling C extensions
-export AIOHTTP_NO_EXTENSIONS=1
-export YARL_NO_EXTENSIONS=1
-export MULTIDICT_NO_EXTENSIONS=1
-export FROZENLIST_NO_EXTENSIONS=1
-
-info "Installing requirements..."
-$WINE_PYTHON -m pip install --no-build-isolation --no-dependencies --no-binary :all: --no-warn-script-location \
+# Install frozen dependencies
+$WINE_PYTHON -m pip install --no-build-isolation --no-dependencies --no-warn-script-location \
     --cache-dir "$WINE_PIP_CACHE_DIR" -r "$CONTRIB"/deterministic-build/requirements.txt
-info "Installing dependencies specific to binaries..."
-# TODO use "--no-binary :all:" (but we don't have a C compiler...)
+
 $WINE_PYTHON -m pip install --no-build-isolation --no-dependencies --no-warn-script-location \
     --cache-dir "$WINE_PIP_CACHE_DIR" -r "$CONTRIB"/deterministic-build/requirements-binaries.txt
-info "Installing hardware wallet requirements..."
-# TODO use "--no-binary :all:" (but we don't have a C compiler...)
+
 $WINE_PYTHON -m pip install --no-build-isolation --no-dependencies --no-warn-script-location \
     --cache-dir "$WINE_PIP_CACHE_DIR" -r "$CONTRIB"/deterministic-build/requirements-hw.txt
 
-pushd $WINEPREFIX/drive_c/electrum
+pushd $WINEPREFIX/drive_c/electrum-ltc
 # see https://github.com/pypa/pip/issues/2195 -- pip makes a copy of the entire directory
 info "Pip installing Electrum. This might take a long time if the project folder is large."
 $WINE_PYTHON -m pip install --no-build-isolation --no-dependencies --no-warn-script-location .
@@ -56,7 +55,7 @@ rm -rf dist/
 
 # build standalone and portable versions
 info "Running pyinstaller..."
-ELECTRUM_CMDLINE_NAME="$NAME_ROOT-$VERSION" wine "$WINE_PYHOME/scripts/pyinstaller.exe" --noconfirm --ascii --clean -w deterministic.spec
+wine "$WINE_PYHOME/scripts/pyinstaller.exe" --noconfirm --ascii --clean --name $NAME_ROOT-$VERSION -w deterministic.spec
 
 # set timestamps in dist, in order to make the installer reproducible
 pushd dist
@@ -65,10 +64,10 @@ popd
 
 info "building NSIS installer"
 # $VERSION could be passed to the electrum.nsi script, but this would require some rewriting in the script itself.
-makensis -DPRODUCT_VERSION=$VERSION electrum.nsi
+wine "$WINEPREFIX/drive_c/Program Files (x86)/NSIS/makensis.exe" /DPRODUCT_VERSION=$VERSION electrum.nsi
 
 cd dist
-mv electrum-setup.exe $NAME_ROOT-$VERSION-setup.exe
+mv electrum-ltc-setup.exe $NAME_ROOT-$VERSION-setup.exe
 cd ..
 
 info "Padding binaries to 8-byte boundaries, and fixing COFF image checksum in PE header"

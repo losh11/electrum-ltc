@@ -8,12 +8,13 @@ from electrum.util import create_and_start_event_loop, log_exceptions
 from electrum import constants
 
 # testnet?
-#constants.set_testnet()
+# constants.set_testnet()
 config = SimpleConfig({'testnet': False})
 
 loop, stopping_fut, loop_thread = create_and_start_event_loop()
 network = Network(config)
 network.start()
+
 
 @log_exceptions
 async def f():

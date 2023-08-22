@@ -48,6 +48,7 @@ Builder.load_string('''
                     popup.dismiss()
 ''')
 
+
 class LabelDialog(Factory.Popup):
 
     def __init__(self, title, text, callback):

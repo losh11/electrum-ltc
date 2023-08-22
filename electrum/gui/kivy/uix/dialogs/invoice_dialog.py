@@ -87,6 +87,7 @@ Builder.load_string('''
                     disabled: not root.can_pay
 ''')
 
+
 class InvoiceDialog(Factory.Popup):
 
     def __init__(self, title, data, key):
@@ -102,7 +103,8 @@ class InvoiceDialog(Factory.Popup):
         self.description = invoice.message
         self.is_lightning = invoice.is_lightning()
         self.update_status()
-        self.log = self.app.wallet.lnworker.logs[self.key] if self.is_lightning and self.app.wallet.lnworker else []
+        self.log = self.app.wallet.lnworker.logs[self.key] if self.is_lightning and self.app.wallet.lnworker else [
+        ]
 
     def update_status(self):
         invoice = self.app.wallet.get_invoice(self.key)
@@ -112,7 +114,8 @@ class InvoiceDialog(Factory.Popup):
         self.can_pay = self.status in [PR_UNPAID, PR_FAILED]
         if self.can_pay and self.is_lightning and self.app.wallet.lnworker:
             if self.amount_sat and not self.app.wallet.lnworker.can_pay_invoice(invoice):
-                self.warning = _('Warning') + ': ' + _('This amount exceeds the maximum you can currently send with your channels')
+                self.warning = _('Warning') + ': ' + _(
+                    'This amount exceeds the maximum you can currently send with your channels')
 
     def on_dismiss(self):
         self.app.request_popup = None
@@ -133,6 +136,7 @@ class InvoiceDialog(Factory.Popup):
 
     def delete_dialog(self):
         from .question import Question
+
         def cb(result):
             if result:
                 self.dismiss()

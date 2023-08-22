@@ -26,7 +26,7 @@ from electrum.i18n import _
 from .seed_dialog import SeedLayout, KeysLayout
 from .network_dialog import NetworkChoiceLayout
 from .util import (MessageBoxMixin, Buttons, icon_path, ChoicesLayout, WWLabel,
-                   InfoButton, char_width_in_lineedit, PasswordLineEdit, font_height)
+                   InfoButton, char_width_in_lineedit, PasswordLineEdit)
 from .password_dialog import PasswordLayout, PasswordLayoutForHW, PW_NEW
 from .bip39_recovery_dialog import Bip39RecoveryDialog
 from electrum.plugin import run_hook, Plugins
@@ -38,30 +38,30 @@ if TYPE_CHECKING:
 
 
 MSG_ENTER_PASSWORD = _("Choose a password to encrypt your wallet keys.") + '\n'\
-                     + _("Leave this field empty if you want to disable encryption.")
+    + _("Leave this field empty if you want to disable encryption.")
 MSG_HW_STORAGE_ENCRYPTION = _("Set wallet file encryption.") + '\n'\
-                          + _("Your wallet file does not contain secrets, mostly just metadata. ") \
-                          + _("It also contains your master public key that allows watching your addresses.") + '\n\n'\
-                          + _("Note: If you enable this setting, you will need your hardware device to open your wallet.")
+    + _("Your wallet file does not contain secrets, mostly just metadata. ") \
+    + _("It also contains your master public key that allows watching your addresses.") + '\n\n'\
+    + _("Note: If you enable this setting, you will need your hardware device to open your wallet.")
 WIF_HELP_TEXT = (_('WIF keys are typed in Electrum, based on script type.') + '\n\n' +
                  _('A few examples') + ':\n' +
-                 'p2pkh:KxZcY47uGp9a...       \t-> 1DckmggQM...\n' +
-                 'p2wpkh-p2sh:KxZcY47uGp9a... \t-> 3NhNeZQXF...\n' +
-                 'p2wpkh:KxZcY47uGp9a...      \t-> bc1q3fjfk...')
-# note: full key is KxZcY47uGp9aVQAb6VVvuBs8SwHKgkSR2DbZUzjDzXf2N2GPhG9n
+                 'p2pkh:T4PsyoR5gC8B...       \t-> LXqi2tzER...\n' +
+                 'p2wpkh-p2sh:T4PsyoR5gC8B... \t-> MUuWxSpVC...\n' +
+                 'p2wpkh:T4PsyoR5gC8B...      \t-> ltc1q3fjf...')
+# note: full key is T4PsyoR5gC8BGEoTe8So7YQWPnvdkqTJqRVpLoMmZVqBsunDdeuJ
 MSG_PASSPHRASE_WARN_ISSUE4566 = _("Warning") + ": "\
-                              + _("You have multiple consecutive whitespaces or leading/trailing "
-                                  "whitespaces in your passphrase.") + " " \
-                              + _("This is discouraged.") + " " \
-                              + _("Due to a bug, old versions of Electrum will NOT be creating the "
+    + _("You have multiple consecutive whitespaces or leading/trailing "
+        "whitespaces in your passphrase.") + " " \
+    + _("This is discouraged.") + " " \
+    + _("Due to a bug, old versions of Electrum will NOT be creating the "
                                   "same wallet as newer versions or other software.")
 
 
 class CosignWidget(QWidget):
+    size = 120
 
     def __init__(self, m, n):
         QWidget.__init__(self)
-        self.size = max(120, 9 * font_height())
         self.R = QRect(0, 0, self.size, self.size)
         self.setGeometry(self.R)
         self.setMinimumHeight(self.size)
@@ -86,12 +86,11 @@ class CosignWidget(QWidget):
         qp.setRenderHint(QPainter.Antialiasing)
         qp.setBrush(Qt.gray)
         for i in range(self.n):
-            alpha = int(16* 360 * i/self.n)
-            alpha2 = int(16* 360 * 1/self.n)
-            qp.setBrush(Qt.green if i<self.m else Qt.gray)
+            alpha = int(16 * 360 * i/self.n)
+            alpha2 = int(16 * 360 * 1/self.n)
+            qp.setBrush(Qt.green if i < self.m else Qt.gray)
             qp.drawPie(self.R, alpha, alpha2)
         qp.end()
-
 
 
 def wizard_dialog(func):
@@ -99,8 +98,9 @@ def wizard_dialog(func):
         run_next = kwargs['run_next']
         wizard = args[0]  # type: InstallWizard
         while True:
-            #wizard.logger.debug(f"dialog stack. len: {len(wizard._stack)}. stack: {wizard._stack}")
-            wizard.back_button.setText(_('Back') if wizard.can_go_back() else _('Cancel'))
+            # wizard.logger.debug(f"dialog stack. len: {len(wizard._stack)}. stack: {wizard._stack}")
+            wizard.back_button.setText(
+                _('Back') if wizard.can_go_back() else _('Cancel'))
             # current dialog
             try:
                 out = func(*args, **kwargs)
@@ -152,7 +152,7 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
     def __init__(self, config: 'SimpleConfig', app: QApplication, plugins: 'Plugins', *, gui_object: 'ElectrumGui'):
         QDialog.__init__(self, None)
         BaseWizard.__init__(self, config, plugins)
-        self.setWindowTitle('Electrum  -  ' + _('Install Wizard'))
+        self.setWindowTitle('Electrum-LTC  -  ' + _('Install Wizard'))
         self.app = app
         self.config = config
         self.gui_thread = gui_object.gui_thread
@@ -161,7 +161,8 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         self.title = QLabel()
         self.main_widget = QWidget()
         self.back_button = QPushButton(_("Back"), self)
-        self.back_button.setText(_('Back') if self.can_go_back() else _('Cancel'))
+        self.back_button.setText(
+            _('Back') if self.can_go_back() else _('Cancel'))
         self.next_button = QPushButton(_("Next"), self)
         self.next_button.setDefault(True)
         self.logo = QLabel()
@@ -196,7 +197,7 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         hbox.setStretchFactor(scroll, 1)
         outer_vbox.addLayout(hbox)
         outer_vbox.addLayout(Buttons(self.back_button, self.next_button))
-        self.set_icon('electrum.png')
+        self.set_icon('electrum-ltc.png')
         self.show()
         self.raise_()
         self.refresh_gui()  # Need for QT on MacOSX.  Lame.
@@ -227,7 +228,8 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
 
         vbox.addSpacing(50)
         vbox_create_new = QVBoxLayout()
-        vbox_create_new.addWidget(QLabel(_('Alternatively') + ':'), alignment=Qt.AlignLeft)
+        vbox_create_new.addWidget(
+            QLabel(_('Alternatively') + ':'), alignment=Qt.AlignLeft)
         button_create_new = QPushButton(_('Create New Wallet'))
         button_create_new.setMinimumWidth(120)
         vbox_create_new.addWidget(button_create_new, alignment=Qt.AlignLeft)
@@ -236,13 +238,14 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         vbox_create_new.setContentsMargins(0, 0, 0, 0)
         vbox.addWidget(widget_create_new)
 
-        self.set_layout(vbox, title=_('Electrum wallet'))
+        self.set_layout(vbox, title=_('Electrum-LTC wallet'))
 
         temp_storage = None  # type: Optional[WalletStorage]
         wallet_folder = os.path.dirname(path)
 
         def on_choose():
-            path, __ = QFileDialog.getOpenFileName(self, "Select your wallet file", wallet_folder)
+            path, __ = QFileDialog.getOpenFileName(
+                self, "Select your wallet file", wallet_folder)
             if path:
                 name_e.setText(path)
 
@@ -256,7 +259,8 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
                 wallet_from_memory = get_wallet_from_daemon(path)
                 try:
                     if wallet_from_memory:
-                        temp_storage = wallet_from_memory.storage  # type: Optional[WalletStorage]
+                        # type: Optional[WalletStorage]
+                        temp_storage = wallet_from_memory.storage
                     else:
                         temp_storage = WalletStorage(path)
                 except (StorageReadWriteError, WalletFileException) as e:
@@ -270,16 +274,16 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
             user_needs_to_enter_password = False
             if temp_storage:
                 if not temp_storage.file_exists():
-                    msg =_("This file does not exist.") + '\n' \
-                          + _("Press 'Next' to create this wallet, or choose another file.")
+                    msg = _("This file does not exist.") + '\n' \
+                        + _("Press 'Next' to create this wallet, or choose another file.")
                 elif not wallet_from_memory:
                     if temp_storage.is_encrypted_with_user_pw():
                         msg = _("This file is encrypted with a password.") + '\n' \
-                              + _('Enter your password or choose another file.')
+                            + _('Enter your password or choose another file.')
                         user_needs_to_enter_password = True
                     elif temp_storage.is_encrypted_with_hw_device():
                         msg = _("This file is encrypted using a hardware device.") + '\n' \
-                              + _("Press 'Next' to choose device to decrypt.")
+                            + _("Press 'Next' to choose device to decrypt.")
                     else:
                         msg = _("Press 'Next' to open this wallet.")
                 else:
@@ -288,7 +292,8 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
             if msg is None:
                 msg = _('Cannot read file')
             msg_label.setText(msg)
-            widget_create_new.setVisible(bool(temp_storage and temp_storage.file_exists()))
+            widget_create_new.setVisible(
+                bool(temp_storage and temp_storage.file_exists()))
             if user_needs_to_enter_password:
                 pw_label.show()
                 pw_e.show()
@@ -330,11 +335,12 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
                             raise UserCancelled()
                     elif temp_storage.is_encrypted_with_hw_device():
                         try:
-                            self.run('choose_hw_device', HWD_SETUP_DECRYPT_WALLET, storage=temp_storage)
+                            self.run(
+                                'choose_hw_device', HWD_SETUP_DECRYPT_WALLET, storage=temp_storage)
                         except InvalidPassword as e:
                             self.show_message(title=_('Error'),
                                               msg=_('Failed to decrypt using this hardware device.') + '\n' +
-                                                  _('If you use a passphrase, make sure it is correct.'))
+                                              _('If you use a passphrase, make sure it is correct.'))
                             self.reset_stack()
                             return self.select_storage(path, get_wallet_from_daemon)
                         except (UserCancelled, GoBack):
@@ -369,7 +375,8 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
             if not self.question(msg):
                 return
             file_list = db.split_accounts(path)
-            msg = _('Your accounts have been moved to') + ':\n' + '\n'.join(file_list) + '\n\n'+ _('Do you want to delete the old file') + ':\n' + path
+            msg = _('Your accounts have been moved to') + ':\n' + '\n'.join(file_list) + \
+                '\n\n' + _('Do you want to delete the old file') + ':\n' + path
             if self.question(msg):
                 os.remove(path)
                 self.show_warning(_('The file was removed'))
@@ -378,7 +385,8 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
 
         action = db.get_action()
         if action and db.requires_upgrade():
-            raise WalletFileException('Incomplete wallet files cannot be upgraded.')
+            raise WalletFileException(
+                'Incomplete wallet files cannot be upgraded.')
         if action:
             self.hide()
             msg = _("The file '{}' contains an incompletely created wallet.\n"
@@ -411,7 +419,7 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         return prior_filename
 
     def set_layout(self, layout, title=None, next_enabled=True):
-        self.title.setText("<b>%s</b>"%title if title else "")
+        self.title.setText("<b>%s</b>" % title if title else "")
         self.title.setVisible(bool(title))
         # Get rid of any prior layout by assigning it to a temporary widget
         prior_layout = self.main_widget.layout()
@@ -426,7 +434,7 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         self.please_wait.setVisible(False)
 
     def exec_layout(self, layout, title=None, raise_on_cancel=True,
-                        next_enabled=True, focused_widget=None):
+                    next_enabled=True, focused_widget=None):
         self.set_layout(layout, title, next_enabled)
         if focused_widget:
             focused_widget.setFocus()
@@ -475,12 +483,13 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         label.setMinimumWidth(400)
         header_layout.addWidget(label)
         if show_wif_help:
-            header_layout.addWidget(InfoButton(WIF_HELP_TEXT), alignment=Qt.AlignRight)
+            header_layout.addWidget(InfoButton(
+                WIF_HELP_TEXT), alignment=Qt.AlignRight)
         return self.text_input(title, header_layout, is_valid, allow_multi)
 
     @wizard_dialog
     def add_cosigner_dialog(self, run_next, index, is_valid):
-        title = _("Add Cosigner") + " %d"%index
+        title = _("Add Cosigner") + " %d" % index
         message = ' '.join([
             _('Please enter the master public key (xpub) of your cosigner.'),
             _('Enter their master private key (xprv) if you want to be able to sign for them.')
@@ -497,7 +506,8 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         if self.opt_slip39:
             options.append('slip39')
         title = _('Enter Seed')
-        message = _('Please enter your seed phrase in order to restore your wallet.')
+        message = _(
+            'Please enter your seed phrase in order to restore your wallet.')
         return self.seed_input(title, message, test, options)
 
     @wizard_dialog
@@ -531,7 +541,8 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
             force_disable_encrypt_cb=force_disable_encrypt_cb)
         pw_layout.encrypt_cb.setChecked(True)
         try:
-            self.exec_layout(pw_layout.layout(), focused_widget=pw_layout.new_pw)
+            self.exec_layout(pw_layout.layout(),
+                             focused_widget=pw_layout.new_pw)
             return pw_layout.new_password(), pw_layout.encrypt_cb.isChecked()
         finally:
             pw_layout.clear_password_fields()
@@ -594,6 +605,7 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
 
         exc = None  # type: Optional[Exception]
         res = None
+
         def task_wrapper():
             nonlocal exc
             nonlocal res
@@ -644,6 +656,7 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
 
         if get_account_xpub:
             button = QPushButton(_("Detect Existing Accounts"))
+
             def on_account_select(account):
                 script_type = account["script_type"]
                 if script_type == "p2pkh":
@@ -652,13 +665,15 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
                 button = clayout.group.buttons()[button_index]
                 button.setChecked(True)
                 line.setText(account["derivation_path"])
-            button.clicked.connect(lambda: Bip39RecoveryDialog(self, get_account_xpub, on_account_select))
+            button.clicked.connect(lambda: Bip39RecoveryDialog(
+                self, get_account_xpub, on_account_select))
             vbox.addWidget(button, alignment=Qt.AlignLeft)
             vbox.addWidget(QLabel(_("Or")))
 
         c_values = [x[0] for x in choices]
         c_titles = [x[1] for x in choices]
         c_default_text = [x[2] for x in choices]
+
         def on_choice_click(clayout):
             idx = clayout.selected_index()
             line.setText(c_default_text[idx])
@@ -670,6 +685,7 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         vbox.addWidget(WWLabel(message2))
 
         line = QLineEdit()
+
         def on_text_change(text):
             self.next_button.setEnabled(test_text(text))
         line.textEdited.connect(on_text_change)
@@ -687,11 +703,13 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         vbox.addWidget(WWLabel(message))
         line = QLineEdit()
         line.setText(default)
+
         def f(text):
             self.next_button.setEnabled(test(text))
             if warn_issue4566:
                 text_whitespace_normalised = ' '.join(text.split())
-                warn_issue4566_label.setVisible(text != text_whitespace_normalised)
+                warn_issue4566_label.setVisible(
+                    text != text_whitespace_normalised)
         line.textEdited.connect(f)
         vbox.addWidget(line)
         vbox.addWidget(WWLabel(warning))
@@ -702,7 +720,8 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
 
         for preset in presets:
             button = QPushButton(preset[0])
-            button.clicked.connect(lambda __, text=preset[1]: line.setText(text))
+            button.clicked.connect(
+                lambda __, text=preset[1]: line.setText(text))
             button.setMinimumWidth(150)
             hbox = QHBoxLayout()
             hbox.addWidget(button, alignment=Qt.AlignCenter)
@@ -731,11 +750,11 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
 
     def init_network(self, network: 'Network'):
         message = _("Electrum communicates with remote servers to get "
-                  "information about your transactions and addresses. The "
-                  "servers all fulfill the same purpose only differing in "
-                  "hardware. In most cases you simply want to let Electrum "
-                  "pick one at random.  However if you prefer feel free to "
-                  "select a server manually.")
+                    "information about your transactions and addresses. The "
+                    "servers all fulfill the same purpose only differing in "
+                    "hardware. In most cases you simply want to let Electrum "
+                    "pick one at random.  However if you prefer feel free to "
+                    "select a server manually.")
         choices = [_("Auto connect"), _("Select server manually")]
         title = _("How do you want to connect to a server? ")
         clayout = ChoicesLayout(message, choices)
@@ -769,10 +788,12 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         grid.addWidget(n_edit, 0, 1)
         grid.addWidget(m_label, 1, 0)
         grid.addWidget(m_edit, 1, 1)
+
         def on_m(m):
             m_label.setText(_('Require {0} signatures').format(m))
             cw.set_m(m)
             backup_warning_label.setVisible(cw.m != cw.n)
+
         def on_n(n):
             n_label.setText(_('From {0} cosigners').format(n))
             cw.set_n(n)
@@ -782,7 +803,8 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         m_edit.valueChanged.connect(on_m)
         vbox = QVBoxLayout()
         vbox.addWidget(cw)
-        vbox.addWidget(WWLabel(_("Choose the number of signatures needed to unlock funds in your wallet:")))
+        vbox.addWidget(WWLabel(
+            _("Choose the number of signatures needed to unlock funds in your wallet:")))
         vbox.addLayout(grid)
         vbox.addSpacing(2 * char_width_in_lineedit())
         backup_warning_label = WWLabel(_("Warning: to be able to restore a multisig wallet, "

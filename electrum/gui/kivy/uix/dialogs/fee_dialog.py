@@ -69,8 +69,6 @@ Builder.load_string('''
 ''')
 
 
-
-
 class FeeSliderDialog:
 
     def __init__(self, config, slider):
@@ -107,7 +105,8 @@ class FeeSliderDialog:
             else:
                 self.config.set_key('fee_level', value, True)
         else:
-            self.config.set_key('fee_per_kb', self.config.static_fee(value), True)
+            self.config.set_key(
+                'fee_per_kb', self.config.static_fee(value), True)
 
     def update_text(self):
         pass
@@ -135,15 +134,21 @@ class FeeDialog(FeeSliderDialog, Factory.Popup):
         dynfees, mempool = self.get_method()
         if self.method == 2:
             fee_rate = self.config.depth_to_fee(pos)
-            target, estimate = self.config.get_fee_text(pos, dynfees, mempool, fee_rate)
-            msg = 'In the current network conditions, in order to be positioned %s, a transaction will require a fee of %s.' % (target, estimate)
+            target, estimate = self.config.get_fee_text(
+                pos, dynfees, mempool, fee_rate)
+            msg = 'In the current network conditions, in order to be positioned %s, a transaction will require a fee of %s.' % (
+                target, estimate)
         elif self.method == 1:
             fee_rate = self.config.eta_to_fee(pos)
-            target, estimate = self.config.get_fee_text(pos, dynfees, mempool, fee_rate)
-            msg = 'In the last few days, transactions that confirmed %s usually paid a fee of at least %s.' % (target.lower(), estimate)
+            target, estimate = self.config.get_fee_text(
+                pos, dynfees, mempool, fee_rate)
+            msg = 'In the last few days, transactions that confirmed %s usually paid a fee of at least %s.' % (
+                target.lower(), estimate)
         else:
             fee_rate = self.config.static_fee(pos)
-            target, estimate = self.config.get_fee_text(pos, dynfees, True, fee_rate)
-            msg = 'In the current network conditions, a transaction paying %s would be positioned %s.' % (target, estimate)
+            target, estimate = self.config.get_fee_text(
+                pos, dynfees, True, fee_rate)
+            msg = 'In the current network conditions, a transaction paying %s would be positioned %s.' % (
+                target, estimate)
         self.ids.fee_target.text = target
         self.ids.fee_estimate.text = msg

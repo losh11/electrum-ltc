@@ -80,9 +80,11 @@ class _BaseRBFDialog(WindowModalDialog):
 
         grid = QGridLayout()
         grid.addWidget(QLabel(_('Current Fee') + ':'), 0, 0)
-        grid.addWidget(QLabel(self.window.format_amount(fee) + ' ' + self.window.base_unit()), 0, 1)
+        grid.addWidget(QLabel(self.window.format_amount(
+            fee) + ' ' + self.window.base_unit()), 0, 1)
         grid.addWidget(QLabel(_('Current Fee rate') + ':'), 1, 0)
-        grid.addWidget(QLabel(self.window.format_fee_rate(1000 * old_fee_rate)), 1, 1)
+        grid.addWidget(
+            QLabel(self.window.format_fee_rate(1000 * old_fee_rate)), 1, 1)
         grid.addWidget(QLabel(_('New Fee rate') + ':'), 2, 0)
         grid.addWidget(self.feerate_e, 2, 1)
         grid.addWidget(fee_slider, 3, 1)
@@ -107,6 +109,7 @@ class _BaseRBFDialog(WindowModalDialog):
         adv_widget = QWidget()
         adv_widget.setLayout(adv_vbox)
         adv_widget.setVisible(False)
+
         def show_adv_settings():
             self.adv_button.setEnabled(False)
             adv_widget.setVisible(True)
@@ -144,7 +147,8 @@ class BumpFeeDialog(_BaseRBFDialog):
             tx: PartialTransaction,
             txid: str,
     ):
-        help_text = _("Increase your transaction's fee to improve its position in mempool.")
+        help_text = _(
+            "Increase your transaction's fee to improve its position in mempool.")
         _BaseRBFDialog.__init__(
             self,
             main_window=main_window,
@@ -160,7 +164,8 @@ class BumpFeeDialog(_BaseRBFDialog):
             txid=self.txid,
             new_fee_rate=fee_rate,
             coins=self.window.get_coins(),
-            strategies=self.option_index_to_strats[self.strat_combo.currentIndex()],
+            strategies=self.option_index_to_strats[self.strat_combo.currentIndex(
+            )],
         )
 
     def _add_advanced_options(self, adv_vbox: QVBoxLayout) -> None:

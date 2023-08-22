@@ -25,7 +25,6 @@ class AnimatedPopup(Factory.Popup):
 
     __events__ = ['on_activate', 'on_deactivate']
 
-
     def on_activate(self):
         '''Base function to be overridden on inherited classes.
         Called when the popup is done animating.
@@ -62,6 +61,7 @@ class AnimatedPopup(Factory.Popup):
         anim = Factory.Animation(opacity=0, d=.25)
         anim.bind(on_complete=on_complete)
         anim.start(self)
+
 
 class EventsDialog(Factory.Popup):
     ''' Abstract Popup that provides the following events
@@ -170,7 +170,6 @@ class InfoBubble(Factory.Bubble):
         anim.cancel_all(self)
         anim.start(self)
 
-
     def hide(self, now=False):
         ''' Auto fade out the Bubble
         '''
@@ -196,9 +195,9 @@ class InfoBubble(Factory.Bubble):
         anim.start(self)
 
 
-
 class OutputItem(BoxLayout):
     pass
+
 
 class OutputList(RecycleView):
 

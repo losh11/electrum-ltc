@@ -12,7 +12,7 @@ from electrum.bitcoin import address_to_script
 chain_file = 'mychain.pem'
 cert_file = 'mycert.pem'
 amount = 1000000
-address = "18U5kpCAU4s8weFF8Ps5n8HAfpdUjDVF64"
+address = "LSh322VzYj7CCSwQJXrP49Lvt2zktLjQbz"
 memo = "blah"
 out_file = "payreq"
 
@@ -31,7 +31,7 @@ script = address_to_script(address)
 
 pr_string = paymentrequest.make_payment_request(amount, script, memo, rsakey)
 
-with open(out_file,'wb') as f:
+with open(out_file, 'wb') as f:
     f.write(pr_string)
 
-print("Payment request was written to file '%s'"%out_file)
+print("Payment request was written to file '%s'" % out_file)

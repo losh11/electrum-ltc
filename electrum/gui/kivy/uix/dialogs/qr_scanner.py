@@ -4,6 +4,7 @@ from kivy.lang import Builder
 
 Factory.register('QRScanner', module='electrum.gui.kivy.qr_scanner')
 
+
 class QrScannerDialog(Factory.AnimatedPopup):
 
     __events__ = ('on_complete',)

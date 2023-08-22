@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from PyQt5.QtWidgets import QLabel, QVBoxLayout, QGridLayout, QPushButton, QComboBox, QLineEdit, QSpacerItem, QWidget, QHBoxLayout
+from PyQt5.QtWidgets import QLabel, QVBoxLayout, QGridLayout, QPushButton, QComboBox, QLineEdit
 
 from electrum.i18n import _
 from electrum.transaction import PartialTxOutput, PartialTransaction
@@ -11,14 +11,12 @@ from electrum.util import NotEnoughFunds, NoDynamicFeeEstimates
 
 
 from .util import (WindowModalDialog, Buttons, OkButton, CancelButton,
-                   EnterButton, ColorScheme, WWLabel, read_QIcon, IconLabel,
-                   char_width_in_lineedit)
+                   EnterButton, ColorScheme, WWLabel, read_QIcon, IconLabel)
 from .amountedit import BTCAmountEdit
 
 
 if TYPE_CHECKING:
     from .main_window import ElectrumWindow
-
 
 
 class NewChannelDialog(WindowModalDialog):
@@ -36,10 +34,12 @@ class NewChannelDialog(WindowModalDialog):
         msg = _('Choose a remote node and an amount to fund the channel.')
         if min_amount_sat:
             # only displayed if min_amount_sat is passed as parameter
-            msg += '\n' + _('You need to put at least') + ': ' + self.window.format_amount_and_units(self.min_amount_sat)
+            msg += '\n' + _('You need to put at least') + ': ' + \
+                self.window.format_amount_and_units(self.min_amount_sat)
         vbox.addWidget(WWLabel(msg))
         if self.network.channel_db:
-            vbox.addWidget(QLabel(_('Enter Remote Node ID or connection string or invoice')))
+            vbox.addWidget(
+                QLabel(_('Enter Remote Node ID or connection string or invoice')))
             self.remote_nodeid = QLineEdit()
             self.remote_nodeid.setMinimumWidth(700)
             self.suggest_button = QPushButton(self, text=_('Suggest Peer'))
@@ -50,17 +50,14 @@ class NewChannelDialog(WindowModalDialog):
             self.trampoline_combo.setCurrentIndex(1)
         self.amount_e = BTCAmountEdit(self.window.get_decimal_point)
         self.amount_e.setAmount(amount_sat)
-
-        btn_width = 10 * char_width_in_lineedit()
         self.min_button = EnterButton(_("Min"), self.spend_min)
         self.min_button.setEnabled(bool(self.min_amount_sat))
-        self.min_button.setFixedWidth(btn_width)
         self.max_button = EnterButton(_("Max"), self.spend_max)
-        self.max_button.setFixedWidth(btn_width)
+        self.max_button.setFixedWidth(100)
         self.max_button.setCheckable(True)
         self.clear_button = QPushButton(self, text=_('Clear'))
         self.clear_button.clicked.connect(self.on_clear)
-        self.clear_button.setFixedWidth(btn_width)
+        self.clear_button.setFixedWidth(100)
         h = QGridLayout()
         if self.network.channel_db:
             h.addWidget(QLabel(_('Remote Node ID')), 0, 0)
@@ -70,16 +67,10 @@ class NewChannelDialog(WindowModalDialog):
             h.addWidget(QLabel(_('Remote Node')), 0, 0)
             h.addWidget(self.trampoline_combo, 0, 1, 1, 4)
         h.addWidget(QLabel('Amount'), 2, 0)
-
-        amt_hbox = QHBoxLayout()
-        amt_hbox.setContentsMargins(0, 0, 0, 0)
-        amt_hbox.addWidget(self.amount_e)
-        amt_hbox.addWidget(self.min_button)
-        amt_hbox.addWidget(self.max_button)
-        amt_hbox.addWidget(self.clear_button)
-        amt_hbox.addStretch()
-        h.addLayout(amt_hbox, 2, 1, 1, 4)
-
+        h.addWidget(self.amount_e, 2, 1)
+        h.addWidget(self.min_button, 2, 2)
+        h.addWidget(self.max_button, 2, 3)
+        h.addWidget(self.clear_button, 2, 4)
         vbox.addLayout(h)
         vbox.addStretch()
         ok_button = OkButton(self)
@@ -88,7 +79,7 @@ class NewChannelDialog(WindowModalDialog):
 
     def on_suggest(self):
         self.network.start_gossip()
-        nodeid = (self.lnworker.suggest_peer() or b"").hex()
+        nodeid = self.lnworker.suggest_peer().hex() or ''
         if not nodeid:
             self.remote_nodeid.setText("")
             self.remote_nodeid.setPlaceholderText(
@@ -116,13 +107,14 @@ class NewChannelDialog(WindowModalDialog):
         if not self.max_button.isChecked():
             return
         dummy_nodeid = ecc.GENERATOR.get_public_key_bytes(compressed=True)
-        make_tx = self.window.mktx_for_open_channel(funding_sat='!', node_id=dummy_nodeid)
+        make_tx = self.window.mktx_for_open_channel(
+            funding_sat='!', node_id=dummy_nodeid)
         try:
             tx = make_tx(None)
         except (NotEnoughFunds, NoDynamicFeeEstimates) as e:
             self.max_button.setChecked(False)
             self.amount_e.setFrozen(False)
-            self.window.show_error(str(e))
+            self.main_window.show_error(str(e))
             return
         amount = tx.output_value()
         amount = min(amount, LN_MAX_FUNDING_SAT)

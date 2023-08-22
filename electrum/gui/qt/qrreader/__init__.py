@@ -50,9 +50,11 @@ def scan_qrcode(
 ) -> None:
     """Scans QR code using camera."""
     if sys.platform == 'darwin' or sys.platform in ('windows', 'win32'):
-        _scan_qrcode_using_qtmultimedia(parent=parent, config=config, callback=callback)
+        _scan_qrcode_using_qtmultimedia(
+            parent=parent, config=config, callback=callback)
     else:  # desktop Linux and similar
-        _scan_qrcode_using_zbar(parent=parent, config=config, callback=callback)
+        _scan_qrcode_using_zbar(
+            parent=parent, config=config, callback=callback)
 
 
 def scan_qr_from_image(image: QImage) -> Sequence[QrCodeResult]:
@@ -127,7 +129,8 @@ def _scan_qrcode_using_qtmultimedia(
         if isinstance(parent, MessageBoxMixin):
             parent.msg_box(title=title, text=message, icon=icon, parent=None)
         else:
-            custom_message_box(title=title, text=message, icon=icon, parent=parent)
+            custom_message_box(title=title, text=message,
+                               icon=icon, parent=parent)
         return
 
     global _qr_dialog
@@ -154,4 +157,3 @@ def _scan_qrcode_using_qtmultimedia(
         _logger.exception('camera error')
         _qr_dialog = None
         callback(False, repr(e), None)
-

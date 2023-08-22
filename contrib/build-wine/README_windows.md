@@ -8,13 +8,15 @@
 ## Main steps
 
 ### 1. Check out the code from GitHub:
+
 ```
-> git clone https://github.com/spesmilo/electrum.git
-> cd electrum
+> git clone https://github.com/pooler/electrum-ltc.git
+> cd electrum-ltc
 > git submodule update --init
 ```
 
 Run install (this should install most dependencies):
+
 ```
 > python3 -m pip install --user -e ".[gui,crypto]"
 ```
@@ -30,6 +32,7 @@ however it does not work on Windows.
 If you have access to a Linux machine (e.g. VM) or perhaps even using
 WSL (Windows Subsystem for Linux), you can cross-compile from there to Windows,
 and build this dll:
+
 ```
 $ GCC_TRIPLET_HOST="x86_64-w64-mingw32" ./contrib/make_libsecp256k1.sh
 ```
@@ -53,9 +56,8 @@ Alternatively, MSYS2 and MinGW-w64 can be used directly on Windows, as follows.
 (note: this is a bit cumbersome, see [issue #5976](https://github.com/spesmilo/electrum/issues/5976)
 for discussion)
 
-### 3. Run electrum: 
+### 3. Run electrum:
 
 ```
 > python3 ./run_electrum
 ```
-

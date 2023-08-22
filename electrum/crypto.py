@@ -24,7 +24,6 @@
 # SOFTWARE.
 
 import base64
-import binascii
 import os
 import sys
 import hashlib
@@ -110,10 +109,6 @@ class InvalidPadding(Exception):
     pass
 
 
-class CiphertextFormatError(Exception):
-    pass
-
-
 def append_PKCS7_padding(data: bytes) -> bytes:
     assert_bytes(data)
     padlen = 16 - (len(data) % 16)
@@ -172,11 +167,22 @@ def aes_decrypt_with_iv(key: bytes, iv: bytes, data: bytes) -> bytes:
         raise InvalidPassword()
 
 
+def EncodeAES_base64(secret: bytes, msg: bytes) -> bytes:
+    """Returns base64 encoded ciphertext."""
+    e = EncodeAES_bytes(secret, msg)
+    return base64.b64encode(e)
+
+
 def EncodeAES_bytes(secret: bytes, msg: bytes) -> bytes:
     assert_bytes(msg)
     iv = bytes(os.urandom(16))
     ct = aes_encrypt_with_iv(secret, iv, msg)
     return iv + ct
+
+
+def DecodeAES_base64(secret: bytes, ciphertext_b64: Union[bytes, str]) -> bytes:
+    ciphertext = bytes(base64.b64decode(ciphertext_b64))
+    return DecodeAES_bytes(secret, ciphertext)
 
 
 def DecodeAES_bytes(secret: bytes, ciphertext: bytes) -> bytes:
@@ -261,10 +267,7 @@ def pw_decode_bytes(data: str, password: Union[bytes, str], *, version:int) -> b
     """base64 ciphertext -> plaintext bytes"""
     if version not in KNOWN_PW_HASH_VERSIONS:
         raise UnexpectedPasswordHashVersion(version)
-    try:
-        data_bytes = bytes(base64.b64decode(data, validate=True))
-    except binascii.Error as e:
-        raise CiphertextFormatError("ciphertext not valid base64") from e
+    data_bytes = bytes(base64.b64decode(data))
     return _pw_decode_raw(data_bytes, password, version=version)
 
 
@@ -281,10 +284,7 @@ def pw_encode_with_version_and_mac(data: bytes, password: Union[bytes, str]) -> 
 
 def pw_decode_with_version_and_mac(data: str, password: Union[bytes, str]) -> bytes:
     """base64 ciphertext -> plaintext bytes"""
-    try:
-        data_bytes = bytes(base64.b64decode(data, validate=True))
-    except binascii.Error as e:
-        raise CiphertextFormatError("ciphertext not valid base64") from e
+    data_bytes = bytes(base64.b64decode(data))
     version = int(data_bytes[0])
     encrypted = data_bytes[1:-4]
     mac = data_bytes[-4:]

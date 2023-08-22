@@ -45,16 +45,17 @@ class WatcherList(MyTreeView):
         if self.parent.lnwatcher is None:
             return
         self.model().clear()
-        self.update_headers({0:_('Outpoint'), 1:_('Tx'), 2:_('Status')})
+        self.update_headers({0: _('Outpoint'), 1: _('Tx'), 2: _('Status')})
         lnwatcher = self.parent.lnwatcher
         l = lnwatcher.list_sweep_tx()
         for outpoint in l:
             n = lnwatcher.get_num_tx(outpoint)
             status = lnwatcher.get_channel_status(outpoint)
-            items = [QStandardItem(e) for e in [outpoint, "%d"%n, status]]
+            items = [QStandardItem(e) for e in [outpoint, "%d" % n, status]]
             self.model().insertRow(self.model().rowCount(), items)
         size = lnwatcher.sweepstore.filesize()
-        self.parent.size_label.setText('Database size: %.2f Mb'%(size/1024/1024.))
+        self.parent.size_label.setText(
+            'Database size: %.2f Mb' % (size/1024/1024.))
 
 
 class WatchtowerDialog(QDialog):
@@ -67,7 +68,7 @@ class WatchtowerDialog(QDialog):
         assert self.network
         self.lnwatcher = self.network.local_watchtower
         self.setWindowTitle(_('Watchtower'))
-        self.setMinimumSize(600, 200)
+        self.setMinimumSize(600, 20)
         self.size_label = QLabel()
         self.watcher_list = WatcherList(self)
 

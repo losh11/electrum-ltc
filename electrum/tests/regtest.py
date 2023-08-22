@@ -3,11 +3,13 @@ import sys
 import unittest
 import subprocess
 
+
 class TestLightning(unittest.TestCase):
 
     @staticmethod
     def run_shell(args, timeout=30):
-        process = subprocess.Popen(['electrum/tests/regtest/regtest.sh'] + args, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, universal_newlines=True)
+        process = subprocess.Popen(['electrum/tests/regtest/regtest.sh'] + args,
+                                   stderr=subprocess.STDOUT, stdout=subprocess.PIPE, universal_newlines=True)
         for line in iter(process.stdout.readline, ''):
             sys.stdout.write(line)
             sys.stdout.flush()

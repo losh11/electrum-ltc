@@ -46,7 +46,7 @@ class QrReaderValidatorResult():
         self.message: str = None
         self.message_color: QColor = None
 
-        self.simple_result : str = None
+        self.simple_result: str = None
 
         self.result_usable: Dict[QrCodeResult, bool] = {}
         self.result_colors: Dict[QrCodeResult, QColor] = {}
@@ -66,6 +66,7 @@ class AbstractQrReaderValidator(ABC):
         Checks a list of QR code results for usable codes.
         """
 
+
 class QrReaderValidatorCounting(AbstractQrReaderValidator):
     """
     This QR code result validator doesn't directly accept any results but maintains a dictionary
@@ -79,7 +80,7 @@ class QrReaderValidatorCounting(AbstractQrReaderValidator):
 
         for result in results:
             # Increment the detection count
-            if result not in self.result_counts:
+            if not result in self.result_counts:
                 self.result_counts[result] = 0
             self.result_counts[result] += 1
 
@@ -94,6 +95,7 @@ class QrReaderValidatorCounting(AbstractQrReaderValidator):
                 del self.result_counts[result]
 
         return res
+
 
 class QrReaderValidatorColorizing(QrReaderValidatorCounting):
     """
@@ -112,14 +114,17 @@ class QrReaderValidatorColorizing(QrReaderValidatorCounting):
         # Colorize the QR code results by their detection counts
         for result in results:
             # Enforce strong_count as upper limit
-            self.result_counts[result] = min(self.result_counts[result], self.strong_count)
+            self.result_counts[result] = min(
+                self.result_counts[result], self.strong_count)
 
             # Interpolate between WEAK_COLOR and STRONG_COLOR based on count / strong_count
             lerp_factor = (self.result_counts[result] - 1) / self.strong_count
-            lerped_color = QColorLerp(self.WEAK_COLOR, self.STRONG_COLOR, lerp_factor)
+            lerped_color = QColorLerp(
+                self.WEAK_COLOR, self.STRONG_COLOR, lerp_factor)
             res.result_colors[result] = lerped_color
 
         return res
+
 
 class QrReaderValidatorStrong(QrReaderValidatorColorizing):
     """
@@ -136,6 +141,7 @@ class QrReaderValidatorStrong(QrReaderValidatorColorizing):
                 break
 
         return res
+
 
 class QrReaderValidatorCounted(QrReaderValidatorStrong):
     """
@@ -161,6 +167,7 @@ class QrReaderValidatorCounted(QrReaderValidatorStrong):
             res.message_color = ColorScheme.RED.as_color()
         else:
             res.accepted = True
-            res.simple_result = (results and results[0].data) or ''  # hack added by calin just to take the first one
+            # hack added by calin just to take the first one
+            res.simple_result = (results and results[0].data) or ''
 
         return res

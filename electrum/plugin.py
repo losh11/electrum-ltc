@@ -35,7 +35,8 @@ from concurrent import futures
 from functools import wraps, partial
 
 from .i18n import _
-from .util import (profiler, DaemonThread, UserCancelled, ThreadJob, UserFacingException)
+from .util import (profiler, DaemonThread, UserCancelled,
+                   ThreadJob, UserFacingException)
 from . import bip32
 from . import plugins
 from .simple_config import SimpleConfig
@@ -85,7 +86,8 @@ class Plugins(DaemonThread):
                 sys.modules[spec.name] = module
                 spec.loader.exec_module(module)
             except Exception as e:
-                raise Exception(f"Error pre-loading {full_name}: {repr(e)}") from e
+                raise Exception(
+                    f"Error pre-loading {full_name}: {repr(e)}") from e
             d = module.__dict__
             gui_good = self.gui_name in d.get('available_for', [])
             if not gui_good:
@@ -101,7 +103,8 @@ class Plugins(DaemonThread):
                 try:
                     self.load_plugin(name)
                 except BaseException as e:
-                    self.logger.exception(f"cannot initialize plugin {name}: {e}")
+                    self.logger.exception(
+                        f"cannot initialize plugin {name}: {e}")
 
     def get(self, name):
         return self.plugins.get(name)
@@ -187,6 +190,7 @@ class Plugins(DaemonThread):
     def register_wallet_type(self, name, gui_good, wallet_type):
         from .wallet import register_wallet_type, register_constructor
         self.logger.info(f"registering wallet type {(wallet_type, name)}")
+
         def loader():
             plugin = self.get_plugin(name)
             register_constructor(wallet_type, plugin.wallet_class)
@@ -195,6 +199,7 @@ class Plugins(DaemonThread):
 
     def register_keystore(self, name, gui_good, details):
         from .keystore import register_keystore
+
         def dynamic_constructor(d):
             return self.get_plugin(name).keystore_class(d)
         if details[0] == 'hardware':
@@ -217,6 +222,7 @@ class Plugins(DaemonThread):
 def hook(func):
     hook_names.add(func.__name__)
     return func
+
 
 def run_hook(name, *args):
     results = []
@@ -294,9 +300,16 @@ class BasePlugin(Logger):
         raise NotImplementedError()
 
 
-class DeviceUnpairableError(UserFacingException): pass
-class HardwarePluginLibraryUnavailable(Exception): pass
-class CannotAutoSelectDevice(Exception): pass
+class DeviceUnpairableError(UserFacingException):
+    pass
+
+
+class HardwarePluginLibraryUnavailable(Exception):
+    pass
+
+
+class CannotAutoSelectDevice(Exception):
+    pass
 
 
 class Device(NamedTuple):
@@ -314,7 +327,8 @@ class DeviceInfo(NamedTuple):
     initialized: Optional[bool] = None
     exception: Optional[Exception] = None
     plugin_name: Optional[str] = None  # manufacturer, e.g. "trezor"
-    soft_device_id: Optional[str] = None  # if available, used to distinguish same-type hw devices
+    # if available, used to distinguish same-type hw devices
+    soft_device_id: Optional[str] = None
     model_name: Optional[str] = None  # e.g. "Ledger Nano S"
 
 
@@ -353,7 +367,7 @@ def run_in_hwd_thread(func: Callable[[], T]) -> T:
     else:
         fut = _hwd_comms_executor.submit(func)
         return fut.result()
-        #except (concurrent.futures.CancelledError, concurrent.futures.TimeoutError) as e:
+        # except (concurrent.futures.CancelledError, concurrent.futures.TimeoutError) as e:
 
 
 def runs_in_hwd_thread(func):
@@ -406,10 +420,13 @@ class DeviceMgr(ThreadJob):
         self.xpub_ids = {}  # type: Dict[str, str]
         # A list of clients.  The key is the client, the value is
         # a (path, id_) pair. Needs self.lock.
-        self.clients = {}  # type: Dict[HardwareClientBase, Tuple[Union[str, bytes], str]]
+        # type: Dict[HardwareClientBase, Tuple[Union[str, bytes], str]]
+        self.clients = {}
         # What we recognise.  (vendor_id, product_id) -> Plugin
-        self._recognised_hardware = {}  # type: Dict[Tuple[int, int], HW_PluginBase]
-        self._recognised_vendor = {}  # type: Dict[int, HW_PluginBase]  # vendor_id -> Plugin
+        # type: Dict[Tuple[int, int], HW_PluginBase]
+        self._recognised_hardware = {}
+        # type: Dict[int, HW_PluginBase]  # vendor_id -> Plugin
+        self._recognised_vendor = {}
         # Custom enumerate functions for devices we don't know about.
         self._enumerate_func = set()  # Needs self.lock.
 
@@ -515,7 +532,8 @@ class DeviceMgr(ThreadJob):
                             allow_user_interaction: bool = True) -> Optional['HardwareClientBase']:
         self.logger.info("getting client for keystore")
         if handler is None:
-            raise Exception(_("Handler not found for") + ' ' + plugin.name + '\n' + _("A library is probably missing."))
+            raise Exception(_("Handler not found for") + ' ' +
+                            plugin.name + '\n' + _("A library is probably missing."))
         handler.update_status(False)
         if devices is None:
             devices = self.scan_devices()
@@ -530,7 +548,8 @@ class DeviceMgr(ThreadJob):
             except CannotAutoSelectDevice:
                 pass
             else:
-                client = self.force_pair_xpub(plugin, handler, info, xpub, derivation)
+                client = self.force_pair_xpub(
+                    plugin, handler, info, xpub, derivation)
         if client:
             handler.update_status(True)
             # note: if select_device was called, we might also update label etc here:
@@ -567,7 +586,7 @@ class DeviceMgr(ThreadJob):
             try:
                 client_xpub = client.get_xpub(derivation, xtype)
             except (UserCancelled, RuntimeError):
-                 # Bad / cancelled PIN / passphrase
+                # Bad / cancelled PIN / passphrase
                 client_xpub = None
             if client_xpub == xpub:
                 self.pair_xpub(xpub, info.device.id_)
@@ -577,9 +596,9 @@ class DeviceMgr(ThreadJob):
         # or it is not pairable
         raise DeviceUnpairableError(
             _('Electrum cannot pair with your {}.\n\n'
-              'Before you request bitcoins to be sent to addresses in this '
+              'Before you request litecoins to be sent to addresses in this '
               'wallet, ensure you can pair with your device, or that you have '
-              'its seed (and passphrase, if any).  Otherwise all bitcoins you '
+              'its seed (and passphrase, if any).  Otherwise all litecoins you '
               'receive will be unspendable.').format(plugin.device))
 
     def unpaired_device_infos(self, handler: Optional['HardwareHandlerBase'], plugin: 'HW_PluginBase',
@@ -606,9 +625,11 @@ class DeviceMgr(ThreadJob):
                 soft_device_id = client.get_soft_device_id()
                 model_name = client.device_model_name()
             except Exception as e:
-                self.logger.error(f'failed to create client for {plugin.name} at {device.path}: {repr(e)}')
+                self.logger.error(
+                    f'failed to create client for {plugin.name} at {device.path}: {repr(e)}')
                 if include_failing_clients:
-                    infos.append(DeviceInfo(device=device, exception=e, plugin_name=plugin.name))
+                    infos.append(DeviceInfo(
+                        device=device, exception=e, plugin_name=plugin.name))
                 continue
             infos.append(DeviceInfo(device=device,
                                     label=label,
@@ -650,7 +671,8 @@ class DeviceMgr(ThreadJob):
         if keystore.soft_device_id:
             for info in infos:
                 if info.soft_device_id == keystore.soft_device_id:
-                    self.logger.debug(f"select_device. auto-selected(1) {plugin.device}: soft_device_id matched")
+                    self.logger.debug(
+                        f"select_device. auto-selected(1) {plugin.device}: soft_device_id matched")
                     return info
         # method 2: select device by label
         #           but only if not a placeholder label and only if there is no collision
@@ -659,29 +681,33 @@ class DeviceMgr(ThreadJob):
                 and device_labels.count(keystore.label) == 1):
             for info in infos:
                 if info.label == keystore.label:
-                    self.logger.debug(f"select_device. auto-selected(2) {plugin.device}: label recognised")
+                    self.logger.debug(
+                        f"select_device. auto-selected(2) {plugin.device}: label recognised")
                     return info
         # method 3: if there is only one device connected, and we don't have useful label/soft_device_id
         #           saved for keystore anyway, select it
         if (len(infos) == 1
                 and keystore.label in PLACEHOLDER_HW_CLIENT_LABELS
                 and keystore.soft_device_id is None):
-            self.logger.debug(f"select_device. auto-selected(3) {plugin.device}: only one device")
+            self.logger.debug(
+                f"select_device. auto-selected(3) {plugin.device}: only one device")
             return infos[0]
 
-        self.logger.debug(f"select_device. auto-select failed for {plugin.device}. {allow_user_interaction=}")
+        self.logger.debug(
+            f"select_device. auto-select failed for {plugin.device}. {allow_user_interaction=}")
         if not allow_user_interaction:
             raise CannotAutoSelectDevice()
         # ask user to select device manually
         msg = (
-                _("Could not automatically pair with device for given keystore.") + "\n"
-                + f"(keystore label: {keystore.label!r}, "
-                + f"bip32 root fingerprint: {keystore.get_root_fingerprint()!r})\n\n")
+            _("Could not automatically pair with device for given keystore.") + "\n"
+            + f"(keystore label: {keystore.label!r}, "
+            + f"bip32 root fingerprint: {keystore.get_root_fingerprint()!r})\n\n")
         msg += _("Please select which {} device to use:").format(plugin.device)
         msg += "\n(" + _("Or click cancel to skip this keystore instead.") + ")"
         descriptions = ["{label} ({maybe_model}{init}, {transport})"
                         .format(label=info.label or _("An unnamed {}").format(info.plugin_name),
-                                init=(_("initialized") if info.initialized else _("wiped")),
+                                init=(_("initialized")
+                                      if info.initialized else _("wiped")),
                                 transport=info.device.transport_ui_string,
                                 maybe_model=f"{info.model_name}, " if info.model_name else "")
                         for info in infos]
@@ -691,7 +717,8 @@ class DeviceMgr(ThreadJob):
         if c is None:
             raise UserCancelled()
         info = infos[c]
-        self.logger.debug(f"select_device. user manually selected {plugin.device}. device info: {info}")
+        self.logger.debug(
+            f"select_device. user manually selected {plugin.device}. device info: {info}")
         # note: updated label/soft_device_id will be saved after pairing succeeds
         return info
 
@@ -712,7 +739,8 @@ class DeviceMgr(ThreadJob):
             elif vendor_id in self._recognised_vendor:
                 plugin = self._recognised_vendor[vendor_id]
             if plugin:
-                device = plugin.create_device_from_hid_enumeration(d, product_key=product_key)
+                device = plugin.create_device_from_hid_enumeration(
+                    d, product_key=product_key)
                 if device:
                     devices.append(device)
         return devices
@@ -774,7 +802,7 @@ class DeviceMgr(ThreadJob):
         # add hidapi
         from importlib.metadata import version
         try:
-            ret["hidapi.version"] = version("hidapi")  # FIXME does not work in macOS binary
+            ret["hidapi.version"] = version("hidapi")
         except ImportError:
             ret["hidapi.version"] = None
         return ret
@@ -802,7 +830,8 @@ class DeviceMgr(ThreadJob):
            and then tell the user ks1 could not be paired (and there are no devices left to try)
         """
         from .keystore import Hardware_KeyStore
-        keystores = [ks for ks in keystores if isinstance(ks, Hardware_KeyStore)]
+        keystores = [ks for ks in keystores if isinstance(
+            ks, Hardware_KeyStore)]
         if not keystores:
             return
         if devices is None:

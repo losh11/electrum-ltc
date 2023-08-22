@@ -126,7 +126,7 @@ class HW_PluginBase(BasePlugin):
         if keystore is None:
             keystore = wallet.get_keystore()
         if not is_address(address):
-            keystore.handler.show_error(_('Invalid Bitcoin Address'))
+            keystore.handler.show_error(_('Invalid Litecoin Address'))
             return False
         if not wallet.is_mine(address):
             keystore.handler.show_error(_('Address not in wallet.'))
@@ -157,18 +157,14 @@ class HW_PluginBase(BasePlugin):
                     or versiontuple(library_version) < self.minimum_library
                     or versiontuple(library_version) >= self.maximum_library):
                 raise LibraryFoundButUnusable(library_version=library_version)
-        except ImportError as e:
-            self.libraries_available_message = (
-                _("Missing libraries for {}.").format(self.name)
-                + f"\n    {e!r}"
-            )
+        except ImportError:
             return False
         except LibraryFoundButUnusable as e:
             library_version = e.library_version
             self.libraries_available_message = (
-                    _("Library version for '{}' is incompatible.").format(self.name)
-                    + '\nInstalled: {}, Needed: {} <= x < {}'
-                    .format(library_version, version_str(self.minimum_library), version_str(self.maximum_library)))
+                _("Library version for '{}' is incompatible.").format(self.name)
+                + '\nInstalled: {}, Needed: {} <= x < {}'
+                .format(library_version, version_str(self.minimum_library), version_str(self.maximum_library)))
             self.logger.warning(self.libraries_available_message)
             return False
 
@@ -262,7 +258,8 @@ class HardwareClientBase:
         # digitalbitbox (at least) does not reveal xpubs corresponding to unhardened paths
         # so ask for a direct child, and read out fingerprint from that:
         child_of_root_xpub = self.get_xpub("m/0'", xtype='standard')
-        root_fingerprint = BIP32Node.from_xkey(child_of_root_xpub).fingerprint.hex().lower()
+        root_fingerprint = BIP32Node.from_xkey(
+            child_of_root_xpub).fingerprint.hex().lower()
         return root_fingerprint
 
     @runs_in_hwd_thread
@@ -339,7 +336,8 @@ def trezor_validate_op_return_output_and_get_data(output: TxOutput) -> bytes:
     script = output.scriptpubkey
     if not (script[0] == opcodes.OP_RETURN and
             script[1] == len(script) - 2 and script[1] <= 75):
-        raise UserFacingException(_("Only OP_RETURN scripts, with one constant push, are supported."))
+        raise UserFacingException(
+            _("Only OP_RETURN scripts, with one constant push, are supported."))
     return script[2:]
 
 
@@ -351,7 +349,8 @@ def validate_op_return_output(output: TxOutput, *, max_size: int = None) -> None
         raise UserFacingException(_("OP_RETURN payload too large." + "\n"
                                   + f"(scriptpubkey size {len(script)} > {max_size})"))
     if output.value != 0:
-        raise UserFacingException(_("Amount for OP_RETURN output must be zero."))
+        raise UserFacingException(
+            _("Amount for OP_RETURN output must be zero."))
 
 
 def get_xpubs_and_der_suffixes_from_txinout(tx: PartialTransaction,
@@ -377,7 +376,8 @@ def only_hook_if_libraries_available(func):
     # note: this decorator must wrap @hook, not the other way around,
     # as 'hook' uses the name of the function it wraps
     def wrapper(self: 'HW_PluginBase', *args, **kwargs):
-        if not self.libraries_available: return None
+        if not self.libraries_available:
+            return None
         return func(self, *args, **kwargs)
     return wrapper
 

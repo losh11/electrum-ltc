@@ -50,9 +50,11 @@ class QrReaderVideoSurface(QAbstractVideoSurface):
         if not frame.isValid():
             return False
 
-        image_format = QVideoFrame.imageFormatFromPixelFormat(frame.pixelFormat())
+        image_format = QVideoFrame.imageFormatFromPixelFormat(
+            frame.pixelFormat())
         if image_format == QVideoFrame.Format_Invalid:
-            _logger.info(_('QR code scanner for video frame with invalid pixel format'))
+            _logger.info(
+                _('QR code scanner for video frame with invalid pixel format'))
             return False
 
         if not frame.map(QAbstractVideoBuffer.ReadOnly):
@@ -60,7 +62,8 @@ class QrReaderVideoSurface(QAbstractVideoSurface):
             return False
 
         try:
-            img = QImage(int(frame.bits()), frame.width(), frame.height(), image_format)
+            img = QImage(int(frame.bits()), frame.width(),
+                         frame.height(), image_format)
 
             # Check whether we need to flip the image on any axis
             surface_format = self.surfaceFormat()
@@ -84,8 +87,8 @@ class QrReaderVideoSurface(QAbstractVideoSurface):
         if handle_type == QAbstractVideoBuffer.NoHandle:
             # We support all pixel formats that can be understood by QImage directly
             return [QVideoFrame.Format_ARGB32, QVideoFrame.Format_ARGB32_Premultiplied,
-                QVideoFrame.Format_RGB32, QVideoFrame.Format_RGB24, QVideoFrame.Format_RGB565,
-                QVideoFrame.Format_RGB555, QVideoFrame.Format_ARGB8565_Premultiplied]
+                    QVideoFrame.Format_RGB32, QVideoFrame.Format_RGB24, QVideoFrame.Format_RGB565,
+                    QVideoFrame.Format_RGB555, QVideoFrame.Format_ARGB8565_Premultiplied]
         return []
 
     frame_available = pyqtSignal(QImage)

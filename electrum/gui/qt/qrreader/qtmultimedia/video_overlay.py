@@ -63,7 +63,8 @@ class QrReaderVideoOverlay(QWidget):
         self.bg_rect_pen = QPen()
         self.bg_rect_pen.setColor(Qt.black)
         self.bg_rect_pen.setStyle(Qt.DotLine)
-        self.bg_rect_fill = QColor(255, 255, 255, int(255 * self.BG_RECT_OPACITY))
+        self.bg_rect_fill = QColor(
+            255, 255, 255, int(255 * self.BG_RECT_OPACITY))
 
     def set_results(self, results: List[QrCodeResult], flip_x: bool,
                     validator_results: QrReaderValidatorResult):
@@ -94,7 +95,8 @@ class QrReaderVideoOverlay(QWidget):
         # Compute the transform to flip the coordinate system on the x axis
         transform_flip = QTransform()
         if self.flip_x:
-            transform_flip = transform_flip.translate(self.resolution.width(), 0.0)
+            transform_flip = transform_flip.translate(
+                self.resolution.width(), 0.0)
             transform_flip = transform_flip.scale(-1.0, 1.0)
 
         # Small helper for tuple to QPoint
@@ -120,7 +122,8 @@ class QrReaderVideoOverlay(QWidget):
                 line_from = toqp(res.points[i])
                 line_from += self.crop.topLeft()
 
-                line_to = toqp(res.points[i_n] if i_n < num_points else res.points[0])
+                line_to = toqp(res.points[i_n] if i_n <
+                               num_points else res.points[0])
                 line_to += self.crop.topLeft()
 
                 painter.drawLine(line_from, line_to)
@@ -131,7 +134,8 @@ class QrReaderVideoOverlay(QWidget):
             # to map the center point of the result.
             painter.setWorldTransform(transform, False)
             font_metrics = painter.fontMetrics()
-            data_metrics = QSize(font_metrics.horizontalAdvance(res.data), font_metrics.capHeight())
+            data_metrics = QSize(font_metrics.horizontalAdvance(
+                res.data), font_metrics.capHeight())
 
             center_pos = toqp(res.center)
             center_pos += self.crop.topLeft()
@@ -143,12 +147,14 @@ class QrReaderVideoOverlay(QWidget):
             center_pos += text_offset
 
             padding = self.BG_RECT_PADDING
-            bg_rect_pos = center_pos - QPoint(padding, data_metrics.height() + padding)
+            bg_rect_pos = center_pos - \
+                QPoint(padding, data_metrics.height() + padding)
             bg_rect_size = data_metrics + (QSize(padding, padding) * 2)
             bg_rect = QRect(bg_rect_pos, bg_rect_size)
             bg_rect_path = QPainterPath()
             radius = self.BG_RECT_CORNER_RADIUS
-            bg_rect_path.addRoundedRect(QRectF(bg_rect), radius, radius, Qt.AbsoluteSize)
+            bg_rect_path.addRoundedRect(
+                QRectF(bg_rect), radius, radius, Qt.AbsoluteSize)
             painter.setPen(self.bg_rect_pen)
             painter.fillPath(bg_rect_path, self.bg_rect_fill)
             painter.drawPath(bg_rect_path)

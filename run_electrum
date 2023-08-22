@@ -23,6 +23,24 @@
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+from electrum.i18n import set_language
+from electrum.util import create_and_start_event_loop
+from electrum import keystore
+from electrum import daemon
+from electrum.commands import get_parser, known_commands, Commands, config_variables
+from electrum.util import InvalidPassword, BITCOIN_BIP21_URI_SCHEME, LIGHTNING_URI_SCHEME
+from electrum.util import print_msg, print_stderr, json_encode, json_decode, UserCancelled
+from electrum.storage import WalletStorage
+from electrum.wallet import Wallet
+from electrum.wallet_db import WalletDB
+from electrum import SimpleConfig
+from electrum import constants
+from electrum import util
+# import logging submodule first
+from electrum.logging import get_logger, configure_logging
+from typing import TYPE_CHECKING, Optional
+import asyncio
+import warnings
 import os
 import sys
 
@@ -32,12 +50,8 @@ _min_python_version_tuple = tuple(map(int, (MIN_PYTHON_VERSION.split("."))))
 
 
 if sys.version_info[:3] < _min_python_version_tuple:
-    sys.exit("Error: Electrum requires Python version >= %s..." % MIN_PYTHON_VERSION)
-
-
-import warnings
-import asyncio
-from typing import TYPE_CHECKING, Optional
+    sys.exit("Error: Electrum requires Python version >= %s..." %
+             MIN_PYTHON_VERSION)
 
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -46,7 +60,7 @@ is_android = 'ANDROID_DATA' in os.environ
 is_appimage = 'APPIMAGE' in os.environ
 # is_local: unpacked tar.gz but not pip installed, or git clone
 is_local = (not is_pyinstaller and not is_android and not is_appimage
-            and os.path.exists(os.path.join(script_dir, "electrum.desktop")))
+            and os.path.exists(os.path.join(script_dir, "electrum-ltc.desktop")))
 is_git_clone = is_local and os.path.exists(os.path.join(script_dir, ".git"))
 
 if is_git_clone:
@@ -72,9 +86,11 @@ def check_imports():
         import google.protobuf
         import aiorpcx
     except ImportError as e:
-        sys.exit(f"Error: {str(e)}. Try 'sudo python3 -m pip install <module-name>'")
+        sys.exit(
+            f"Error: {str(e)}. Try 'sudo python3 -m pip install <module-name>'")
     if not ((0, 22, 0) <= aiorpcx._version < (0, 23)):
-        raise RuntimeError(f'aiorpcX version {aiorpcx._version} does not match required: 0.22.0<=ver<0.23')
+        raise RuntimeError(
+            f'aiorpcX version {aiorpcx._version} does not match required: 0.22.0<=ver<0.23')
     # the following imports are for pyinstaller
     from google.protobuf import descriptor
     from google.protobuf import message
@@ -90,20 +106,6 @@ if not is_android:
 
 sys._ELECTRUM_RUNNING_VIA_RUNELECTRUM = True  # used by logging.py
 
-from electrum.logging import get_logger, configure_logging  # import logging submodule first
-from electrum import util
-from electrum import constants
-from electrum import SimpleConfig
-from electrum.wallet_db import WalletDB
-from electrum.wallet import Wallet
-from electrum.storage import WalletStorage
-from electrum.util import print_msg, print_stderr, json_encode, json_decode, UserCancelled
-from electrum.util import InvalidPassword
-from electrum.commands import get_parser, known_commands, Commands, config_variables
-from electrum import daemon
-from electrum import keystore
-from electrum.util import create_and_start_event_loop
-from electrum.i18n import set_language
 
 if TYPE_CHECKING:
     import threading
@@ -141,14 +143,17 @@ def init_cmdline(config_options, wallet_path, server, *, config: 'SimpleConfig')
 
     if cmd.requires_wallet and not storage.file_exists():
         print_msg("Error: Wallet file not found.")
-        print_msg("Type 'electrum create' to create a new wallet, or provide a path to a wallet with the -w option")
+        print_msg(
+            "Type 'electrum-ltc create' to create a new wallet, or provide a path to a wallet with the -w option")
         sys_exit(1)
 
     # important warning
     if cmd.name in ['getprivatekeys']:
         print_stderr("WARNING: ALL your private keys are secret.")
-        print_stderr("Exposing a single private key can compromise your entire wallet!")
-        print_stderr("In particular, DO NOT use 'redeem private key' services proposed by third parties.")
+        print_stderr(
+            "Exposing a single private key can compromise your entire wallet!")
+        print_stderr(
+            "In particular, DO NOT use 'redeem private key' services proposed by third parties.")
 
     # will we need a password
     if not storage.is_encrypted():
@@ -158,8 +163,8 @@ def init_cmdline(config_options, wallet_path, server, *, config: 'SimpleConfig')
         use_encryption = True
 
     # commands needing password
-    if ((cmd.requires_wallet and storage.is_encrypted() and server is False)\
-       or (cmdname == 'load_wallet' and storage.is_encrypted())\
+    if ((cmd.requires_wallet and storage.is_encrypted() and server is False)
+       or (cmdname == 'load_wallet' and storage.is_encrypted())
        or (cmd.requires_password and use_encryption)):
         if storage.is_encrypted_with_hw_device():
             # this case is handled later in the control flow
@@ -204,7 +209,8 @@ def get_connected_hw_devices(plugins: 'Plugins'):
 def get_password_for_hw_device_encrypted_storage(plugins: 'Plugins') -> str:
     devices = get_connected_hw_devices(plugins)
     if len(devices) == 0:
-        print_msg("Error: No connected hw device found. Cannot decrypt this wallet.")
+        print_msg(
+            "Error: No connected hw device found. Cannot decrypt this wallet.")
         sys.exit(1)
     elif len(devices) > 1:
         print_msg("Warning: multiple hardware devices detected. "
@@ -229,7 +235,8 @@ async def run_offline_command(config, config_options, plugins: 'Plugins'):
         storage = WalletStorage(config.get_wallet_path())
         if storage.is_encrypted():
             if storage.is_encrypted_with_hw_device():
-                password = get_password_for_hw_device_encrypted_storage(plugins)
+                password = get_password_for_hw_device_encrypted_storage(
+                    plugins)
                 config_options['password'] = password
             storage.decrypt(password)
         db = WalletDB(storage.read(), manual_upgrades=False)
@@ -254,7 +261,8 @@ async def run_offline_command(config, config_options, plugins: 'Plugins'):
     # options
     kwargs = {}
     for x in cmd.options:
-        kwargs[x] = (config_options.get(x) if x in ['wallet_path', 'wallet', 'password', 'new_password'] else config.get(x))
+        kwargs[x] = (config_options.get(x) if x in ['wallet_path',
+                     'wallet', 'password', 'new_password'] else config.get(x))
     cmd_runner = Commands(config=config)
     func = getattr(cmd_runner, cmd.name)
     result = await func(*args, **kwargs)
@@ -272,6 +280,7 @@ def init_plugins(config, gui_name):
 loop = None  # type: Optional[asyncio.AbstractEventLoop]
 stop_loop = None  # type: Optional[asyncio.Future]
 loop_thread = None  # type: Optional[threading.Thread]
+
 
 def sys_exit(i):
     # stop event loop and exit
@@ -314,7 +323,8 @@ def main():
         elif arg == '?':
             sys.argv[i] = input("Enter argument:")
         elif arg == ':':
-            sys.argv[i] = prompt_password('Enter argument (will not echo):', False)
+            sys.argv[i] = prompt_password(
+                'Enter argument (will not echo):', False)
 
     # parse command line
     parser = get_parser()
@@ -322,21 +332,20 @@ def main():
 
     # config is an object passed to the various constructors (wallet, interface, gui)
     if is_android:
-        import importlib.util
-        android_gui = 'kivy' if importlib.util.find_spec('kivy') else 'qml'
+        from jnius import autoclass
+        build_config = autoclass("org.electrum.electrum.BuildConfig")
         config_options = {
-            'verbosity': '*' if util.is_android_debug_apk() else '',
+            'verbosity': '*' if build_config.DEBUG else '',
             'cmd': 'gui',
-            'gui': android_gui,
+            'gui': 'kivy',
             'single_password': True,
         }
-        if util.get_android_package_name() == "org.electrum.testnet.electrum":
-            # ~hack for easier testnet builds. pkgname subject to change.
-            config_options['testnet'] = True
     else:
         config_options = args.__dict__
-        f = lambda key: config_options[key] is not None and key not in config_variables.get(args.cmd, {}).keys()
-        config_options = {key: config_options[key] for key in filter(f, config_options.keys())}
+        def f(key): return config_options[key] is not None and key not in config_variables.get(
+            args.cmd, {}).keys()
+        config_options = {key: config_options[key]
+                          for key in filter(f, config_options.keys())}
         if config_options.get('server'):
             config_options['auto_connect'] = False
 
@@ -349,7 +358,8 @@ def main():
     if config_options.get('portable'):
         if is_local:
             # running from git clone or local source: put datadir next to main script
-            datadir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'electrum_data')
+            datadir = os.path.join(os.path.dirname(
+                os.path.realpath(__file__)), 'electrum-ltc_data')
         else:
             # Running a binary or installed source. The most generic but still reasonable thing
             # is to use the current working directory. (see #7732)
@@ -357,7 +367,7 @@ def main():
             #       and we don't want to put the datadir inside a temp dir.
             # note: Re the portable .exe on Windows, when the user double-clicks it, CWD gets set
             #       to the parent dir, i.e. we will put the datadir next to the exe.
-            datadir = os.path.join(os.path.realpath(cwd), 'electrum_data')
+            datadir = os.path.join(os.path.realpath(cwd), 'electrum-ltc_data')
         config_options['electrum_path'] = datadir
 
     if not config_options.get('verbosity'):
@@ -365,7 +375,10 @@ def main():
 
     # check uri
     uri = config_options.get('url')
-    if uri and not util.is_uri(uri):
+    if uri and not (
+        uri.lower().startswith(BITCOIN_BIP21_URI_SCHEME + ':') or
+        uri.lower().startswith(LIGHTNING_URI_SCHEME + ':')
+    ):
         print_stderr('unknown command:', uri)
         sys.exit(1)
 
@@ -454,19 +467,21 @@ def handle_cmd(*, cmdname: str, config: 'SimpleConfig', config_options: dict):
             sys_exit(1)
     else:
         # command line
-        configure_logging(config, log_to_file=False)  # don't spam logfiles for each client-side RPC, but support "-v"
         cmd = known_commands[cmdname]
         wallet_path = config.get_wallet_path()
         if not config.get('offline'):
             init_cmdline(config_options, wallet_path, True, config=config)
             timeout = config.get('timeout', 60)
-            if timeout: timeout = int(timeout)
+            if timeout:
+                timeout = int(timeout)
             try:
-                result = daemon.request(config, 'run_cmdline', (config_options,), timeout)
+                result = daemon.request(
+                    config, 'run_cmdline', (config_options,), timeout)
             except daemon.DaemonNotRunning:
-                print_msg("Daemon not running; try 'electrum daemon -d'")
+                print_msg("Daemon not running; try 'electrum-ltc daemon -d'")
                 if not cmd.requires_network:
-                    print_msg("To run this command without a daemon, use --offline")
+                    print_msg(
+                        "To run this command without a daemon, use --offline")
                 sys_exit(1)
             except Exception as e:
                 print_stderr(str(e) or repr(e))

@@ -25,16 +25,19 @@
 
 from typing import TYPE_CHECKING
 
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import (QVBoxLayout, QCheckBox, QHBoxLayout, QLineEdit,
                              QLabel, QCompleter, QDialog, QStyledItemDelegate,
                              QScrollArea, QWidget, QPushButton, QGridLayout, QToolButton)
+
 from PyQt5.QtCore import QRect, QEventLoop, Qt, pyqtSignal
 from PyQt5.QtGui import QPalette, QPen, QPainter, QPixmap
 
 
 from electrum.i18n import _
 
-from .util import Buttons, CloseButton, WindowModalDialog, ColorScheme, font_height, AmountLabel
+from .util import Buttons, CloseButton, WindowModalDialog, ColorScheme
 
 if TYPE_CHECKING:
     from .main_window import ElectrumWindow
@@ -51,6 +54,7 @@ COLOR_UNMATURED = Qt.magenta
 COLOR_FROZEN = ColorScheme.BLUE.as_color(True)
 COLOR_LIGHTNING = Qt.yellow
 COLOR_FROZEN_LIGHTNING = Qt.cyan
+
 
 class PieChartObject:
 
@@ -74,6 +78,7 @@ class PieChartObject:
             alpha += delta
         qp.end()
 
+
 class PieChartWidget(QWidget, PieChartObject):
 
     def __init__(self, size, l):
@@ -85,7 +90,7 @@ class PieChartWidget(QWidget, PieChartObject):
         self.setMaximumWidth(self.size)
         self.setMinimumHeight(self.size)
         self.setMaximumHeight(self.size)
-        self._list = l # list[ (name, color, amount)]
+        self._list = l  # list[ (name, color, amount)]
         self.update()
 
     def update_list(self, l):
@@ -97,7 +102,7 @@ class BalanceToolButton(QToolButton, PieChartObject):
 
     def __init__(self):
         QToolButton.__init__(self)
-        self.size = max(18, font_height())
+        self.size = 18
         self._list = []
         self.R = QRect(6, 3, self.size, self.size)
 
@@ -150,69 +155,83 @@ class BalanceDialog(WindowModalDialog):
 
         confirmed, unconfirmed, unmatured, frozen, lightning, f_lightning = self.wallet.get_balances_for_piechart()
 
-        frozen_str =  self.config.format_amount_and_units(frozen)
-        confirmed_str =  self.config.format_amount_and_units(confirmed)
-        unconfirmed_str =  self.config.format_amount_and_units(unconfirmed)
-        unmatured_str =  self.config.format_amount_and_units(unmatured)
-        lightning_str =  self.config.format_amount_and_units(lightning)
-        f_lightning_str =  self.config.format_amount_and_units(f_lightning)
+        frozen_str = self.config.format_amount_and_units(frozen)
+        confirmed_str = self.config.format_amount_and_units(confirmed)
+        unconfirmed_str = self.config.format_amount_and_units(unconfirmed)
+        unmatured_str = self.config.format_amount_and_units(unmatured)
+        lightning_str = self.config.format_amount_and_units(lightning)
+        f_lightning_str = self.config.format_amount_and_units(f_lightning)
 
-        frozen_fiat_str = self.fx.format_amount_and_units(frozen) if self.fx else ''
-        confirmed_fiat_str = self.fx.format_amount_and_units(confirmed) if self.fx else ''
-        unconfirmed_fiat_str = self.fx.format_amount_and_units(unconfirmed) if self.fx else ''
-        unmatured_fiat_str = self.fx.format_amount_and_units(unmatured) if self.fx else ''
-        lightning_fiat_str = self.fx.format_amount_and_units(lightning) if self.fx else ''
-        f_lightning_fiat_str = self.fx.format_amount_and_units(f_lightning) if self.fx else ''
+        frozen_fiat_str = self.fx.format_amount_and_units(
+            frozen) if self.fx else ''
+        confirmed_fiat_str = self.fx.format_amount_and_units(
+            confirmed) if self.fx else ''
+        unconfirmed_fiat_str = self.fx.format_amount_and_units(
+            unconfirmed) if self.fx else ''
+        unmatured_fiat_str = self.fx.format_amount_and_units(
+            unmatured) if self.fx else ''
+        lightning_fiat_str = self.fx.format_amount_and_units(
+            lightning) if self.fx else ''
+        f_lightning_fiat_str = self.fx.format_amount_and_units(
+            f_lightning) if self.fx else ''
 
-        piechart = PieChartWidget(
-            max(120, 9 * font_height()),
-            [
-                (_('Frozen'), COLOR_FROZEN, frozen),
-                (_('Unmatured'), COLOR_UNMATURED, unmatured),
-                (_('Unconfirmed'), COLOR_UNCONFIRMED, unconfirmed),
-                (_('On-chain'), COLOR_CONFIRMED, confirmed),
-                (_('Lightning'), COLOR_LIGHTNING, lightning),
-                (_('Lightning frozen'), COLOR_FROZEN_LIGHTNING, f_lightning),
-            ]
-        )
+        piechart = PieChartWidget(120, [
+            (_('Frozen'), COLOR_FROZEN, frozen),
+            (_('Unmatured'), COLOR_UNMATURED, unmatured),
+            (_('Unconfirmed'), COLOR_UNCONFIRMED, unconfirmed),
+            (_('Confirmed'), COLOR_CONFIRMED, confirmed),
+            (_('Lightning'), COLOR_LIGHTNING, lightning),
+            (_('Lightning frozen'), COLOR_FROZEN_LIGHTNING, f_lightning),
+        ])
 
         vbox = QVBoxLayout()
         vbox.addWidget(piechart)
         grid = QGridLayout()
-        #grid.addWidget(QLabel(_("Onchain") + ':'), 0, 1)
-        #grid.addWidget(QLabel(onchain_str), 0, 2, alignment=Qt.AlignRight)
-        #grid.addWidget(QLabel(onchain_fiat_str), 0, 3, alignment=Qt.AlignRight)
+        # grid.addWidget(QLabel(_("Onchain") + ':'), 0, 1)
+        # grid.addWidget(QLabel(onchain_str), 0, 2, alignment=Qt.AlignRight)
+        # grid.addWidget(QLabel(onchain_fiat_str), 0, 3, alignment=Qt.AlignRight)
 
         if frozen:
             grid.addWidget(LegendWidget(COLOR_FROZEN), 0, 0)
             grid.addWidget(QLabel(_("Frozen") + ':'), 0, 1)
-            grid.addWidget(AmountLabel(frozen_str), 0, 2, alignment=Qt.AlignRight)
-            grid.addWidget(AmountLabel(frozen_fiat_str), 0, 3, alignment=Qt.AlignRight)
+            grid.addWidget(QLabel(frozen_str), 0, 2, alignment=Qt.AlignRight)
+            grid.addWidget(QLabel(frozen_fiat_str), 0,
+                           3, alignment=Qt.AlignRight)
         if unconfirmed:
             grid.addWidget(LegendWidget(COLOR_UNCONFIRMED), 2, 0)
             grid.addWidget(QLabel(_("Unconfirmed") + ':'), 2, 1)
-            grid.addWidget(AmountLabel(unconfirmed_str), 2, 2, alignment=Qt.AlignRight)
-            grid.addWidget(AmountLabel(unconfirmed_fiat_str), 2, 3, alignment=Qt.AlignRight)
+            grid.addWidget(QLabel(unconfirmed_str), 2,
+                           2, alignment=Qt.AlignRight)
+            grid.addWidget(QLabel(unconfirmed_fiat_str),
+                           2, 3, alignment=Qt.AlignRight)
         if unmatured:
             grid.addWidget(LegendWidget(COLOR_UNMATURED), 3, 0)
             grid.addWidget(QLabel(_("Unmatured") + ':'), 3, 1)
-            grid.addWidget(AmountLabel(unmatured_str), 3, 2, alignment=Qt.AlignRight)
-            grid.addWidget(AmountLabel(unmatured_fiat_str), 3, 3, alignment=Qt.AlignRight)
+            grid.addWidget(QLabel(unmatured_str), 3,
+                           2, alignment=Qt.AlignRight)
+            grid.addWidget(QLabel(unmatured_fiat_str),
+                           3, 3, alignment=Qt.AlignRight)
         if confirmed:
             grid.addWidget(LegendWidget(COLOR_CONFIRMED), 1, 0)
-            grid.addWidget(QLabel(_("On-chain") + ':'), 1, 1)
-            grid.addWidget(AmountLabel(confirmed_str), 1, 2, alignment=Qt.AlignRight)
-            grid.addWidget(AmountLabel(confirmed_fiat_str), 1, 3, alignment=Qt.AlignRight)
+            grid.addWidget(QLabel(_("Confirmed") + ':'), 1, 1)
+            grid.addWidget(QLabel(confirmed_str), 1,
+                           2, alignment=Qt.AlignRight)
+            grid.addWidget(QLabel(confirmed_fiat_str),
+                           1, 3, alignment=Qt.AlignRight)
         if lightning:
             grid.addWidget(LegendWidget(COLOR_LIGHTNING), 4, 0)
             grid.addWidget(QLabel(_("Lightning") + ':'), 4, 1)
-            grid.addWidget(AmountLabel(lightning_str), 4, 2, alignment=Qt.AlignRight)
-            grid.addWidget(AmountLabel(lightning_fiat_str), 4, 3, alignment=Qt.AlignRight)
+            grid.addWidget(QLabel(lightning_str), 4,
+                           2, alignment=Qt.AlignRight)
+            grid.addWidget(QLabel(lightning_fiat_str),
+                           4, 3, alignment=Qt.AlignRight)
         if f_lightning:
             grid.addWidget(LegendWidget(COLOR_FROZEN_LIGHTNING), 5, 0)
             grid.addWidget(QLabel(_("Lightning (frozen)") + ':'), 5, 1)
-            grid.addWidget(AmountLabel(f_lightning_str), 5, 2, alignment=Qt.AlignRight)
-            grid.addWidget(AmountLabel(f_lightning_fiat_str), 5, 3, alignment=Qt.AlignRight)
+            grid.addWidget(QLabel(f_lightning_str), 5,
+                           2, alignment=Qt.AlignRight)
+            grid.addWidget(QLabel(f_lightning_fiat_str),
+                           5, 3, alignment=Qt.AlignRight)
 
         vbox.addLayout(grid)
         vbox.addStretch(1)

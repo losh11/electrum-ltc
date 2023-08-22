@@ -1,10 +1,10 @@
 [app]
 
 # (str) Title of your application
-title = Electrum
+title = Electrum-LTC
 
 # (str) Package name
-package.name = Electrum
+package.name = electrum
 
 # (str) Package domain (needed for android/ios packaging)
 package.domain = org.electrum
@@ -74,12 +74,9 @@ fullscreen = False
 # (list) Permissions
 android.permissions = INTERNET, CAMERA, WRITE_EXTERNAL_STORAGE
 
-# (int) Android API to use  (compileSdkVersion)
+# (int) Android API to use  (targetSdkVersion AND compileSdkVersion)
 # note: when changing, Dockerfile also needs to be changed to install corresponding build tools
 android.api = 30
-
-# (int) Android targetSdkVersion
-android.target_sdk_version = 31
 
 # (int) Minimum API required. You will need to set the android.ndk_api to be as low as this value.
 android.minapi = 21
@@ -159,10 +156,6 @@ android.manifest.launch_mode = singleTask
 # (str) The Android arch to build for, choices: armeabi-v7a, arm64-v8a, x86, x86_64
 # note: can be overwritten by APP_ANDROID_ARCH env var
 #android.arch = armeabi-v7a
-
-# (int) overrides automatic versionCode computation (used in build.gradle)
-# this is not the same as app version and should only be edited if you know what you're doing
-# android.numeric_version = 1
 
 # (list) Android application meta-data to set (key=value format)
 #android.meta_data =

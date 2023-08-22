@@ -8,7 +8,7 @@ alice="./run_electrum --regtest -D /tmp/alice"
 bob="./run_electrum --regtest -D /tmp/bob"
 carol="./run_electrum --regtest -D /tmp/carol"
 
-bitcoin_cli="bitcoin-cli -rpcuser=doggman -rpcpassword=donkey -rpcport=18554 -regtest"
+bitcoin_cli="litecoin-cli -rpcuser=doggman -rpcpassword=donkey -rpcport=18554 -regtest"
 
 function new_blocks()
 {
@@ -353,15 +353,14 @@ if [[ $1 == "watchtower" ]]; then
     echo "alice pays bob again"
     invoice2=$($bob add_request 0.01 -m "invoice2" | jq -r ".lightning_invoice")
     $alice lnpay $invoice2
-    alice_ctn=$($alice list_channels | jq '.[0].local_ctn')
     msg="waiting until watchtower is synchronized"
-    # watchtower needs to be at latest revoked ctn
-    while watchtower_ctn=$($carol get_watchtower_ctn $channel) && [[ $watchtower_ctn != $((alice_ctn-1)) ]]; do
-        sleep 0.1
-        printf "$msg $alice_ctn $watchtower_ctn\r"
+    while watchtower_ctn=$($carol get_watchtower_ctn $channel) && [[ $watchtower_ctn != "3" ]]; do
+        sleep 1
+        msg="$msg."
+        printf "$msg\r"
     done
     printf "\n"
-    echo "stopping alice and bob"
+    echo "alice and bob do nothing"
     $bob stop
     $alice stop
     ctx_id=$($bitcoin_cli sendrawtransaction $ctx)

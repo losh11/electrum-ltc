@@ -1,5 +1,4 @@
 import asyncio
-import shutil
 import tempfile
 from decimal import Decimal
 import os
@@ -13,7 +12,7 @@ from typing import Iterable, NamedTuple, Tuple, List, Dict
 
 from aiorpcx import timeout_after, TaskTimeout
 
-import electrum
+import electrum as electrum
 import electrum.trampoline
 from electrum import bitcoin
 from electrum import util
@@ -23,7 +22,7 @@ from electrum.ecc import ECPrivkey
 from electrum import simple_config, lnutil
 from electrum.lnaddr import lnencode, LnAddr, lndecode
 from electrum.bitcoin import COIN, sha256
-from electrum.util import bh2u, NetworkRetryManager, bfh, OldTaskGroup, EventListener
+from electrum.util import bh2u, NetworkRetryManager, bfh, OldTaskGroup
 from electrum.lnpeer import Peer
 from electrum.lnutil import LNPeerAddr, Keypair, privkey_to_pubkey
 from electrum.lnutil import PaymentFailure, LnFeatures, HTLCOwner
@@ -40,29 +39,34 @@ from electrum.lnutil import derive_payment_secret_from_payment_preimage, UpdateA
 from electrum.lnutil import LOCAL, REMOTE
 from electrum.invoices import PR_PAID, PR_UNPAID
 from electrum.interface import GracefulDisconnect
-from electrum.simple_config import SimpleConfig
 
 from .test_lnchannel import create_test_channels
 from .test_bitcoin import needs_test_with_all_chacha20_implementations
 from . import TestCaseForTestnet
 
+
 def keypair():
     priv = ECPrivkey.generate_random_key().get_secret_bytes()
     k1 = Keypair(
-            pubkey=privkey_to_pubkey(priv),
-            privkey=priv)
+        pubkey=privkey_to_pubkey(priv),
+        privkey=priv)
     return k1
+
 
 @contextmanager
 def noop_lock():
     yield
 
+
 class MockNetwork:
-    def __init__(self, tx_queue, *, config: SimpleConfig):
+    def __init__(self, tx_queue):
         self.callbacks = defaultdict(list)
         self.lnwatcher = None
         self.interface = None
-        self.config = config
+        user_config = {}
+        user_dir = tempfile.mkdtemp(prefix="electrum-lnpeer-test-")
+        self.config = simple_config.SimpleConfig(
+            user_config, read_user_dir_function=lambda: user_dir)
         self.asyncio_loop = util.get_asyncio_loop()
         self.channel_db = ChannelDB(self)
         self.channel_db.data_loaded.set()
@@ -97,24 +101,16 @@ class MockBlockchain:
         return False
 
 
-class MockADB:
-    def add_transaction(self, tx):
-        pass
-
 class MockWallet:
     receive_requests = {}
-    adb = MockADB()
-
-    def get_request(self, key):
-        pass
-
-    def get_key_for_receive_request(self, x):
-        pass
 
     def set_label(self, x, y):
         pass
 
     def save_db(self):
+        pass
+
+    def add_transaction(self, tx):
         pass
 
     def is_lightning_backup(self):
@@ -124,7 +120,7 @@ class MockWallet:
         return True
 
 
-class MockLNWallet(Logger, EventListener, NetworkRetryManager[LNPeerAddr]):
+class MockLNWallet(Logger, NetworkRetryManager[LNPeerAddr]):
     MPP_EXPIRY = 2  # HTLC timestamps are cast to int, so this cannot be 1
     PAYMENT_TIMEOUT = 120
     TIMEOUT_SHUTDOWN_FAIL_PENDING_HTLCS = 0
@@ -133,16 +129,15 @@ class MockLNWallet(Logger, EventListener, NetworkRetryManager[LNPeerAddr]):
     def __init__(self, *, local_keypair: Keypair, chans: Iterable['Channel'], tx_queue, name):
         self.name = name
         Logger.__init__(self)
-        NetworkRetryManager.__init__(self, max_retry_delay_normal=1, init_retry_delay_normal=1)
+        NetworkRetryManager.__init__(
+            self, max_retry_delay_normal=1, init_retry_delay_normal=1)
         self.node_keypair = local_keypair
-        self._user_dir = tempfile.mkdtemp(prefix="electrum-lnpeer-test-")
-        self.config = SimpleConfig({}, read_user_dir_function=lambda: self._user_dir)
-        self.network = MockNetwork(tx_queue, config=self.config)
+        self.network = MockNetwork(tx_queue)
         self.taskgroup = OldTaskGroup()
         self.lnwatcher = None
         self.listen_server = None
         self._channels = {chan.channel_id: chan for chan in chans}
-        self.payment_info = {}
+        self.payments = {}
         self.logs = defaultdict(list)
         self.wallet = MockWallet()
         self.features = LnFeatures(0)
@@ -169,7 +164,8 @@ class MockLNWallet(Logger, EventListener, NetworkRetryManager[LNPeerAddr]):
         self.stopping_soon = False
         self.downstream_htlc_to_upstream_peer_map = {}
 
-        self.logger.info(f"created LNWallet[{name}] with nodeID={local_keypair.pubkey.hex()}")
+        self.logger.info(
+            f"created LNWallet[{name}] with nodeID={local_keypair.pubkey.hex()}")
 
     def pay_scheduled_invoices(self):
         pass
@@ -184,9 +180,6 @@ class MockLNWallet(Logger, EventListener, NetworkRetryManager[LNPeerAddr]):
     @property
     def channel_db(self):
         return self.network.channel_db if self.network else None
-
-    def uses_trampoline(self):
-        return not bool(self.channel_db)
 
     @property
     def channels(self):
@@ -251,7 +244,7 @@ class MockLNWallet(Logger, EventListener, NetworkRetryManager[LNPeerAddr]):
     pay_invoice = LNWallet.pay_invoice
     force_close_channel = LNWallet.force_close_channel
     schedule_force_closing = LNWallet.schedule_force_closing
-    get_first_timestamp = lambda self: 0
+    def get_first_timestamp(self): return 0
     on_peer_successfully_established = LNWallet.on_peer_successfully_established
     get_channel_by_id = LNWallet.get_channel_by_id
     channels_for_peer = LNWallet.channels_for_peer
@@ -260,12 +253,11 @@ class MockLNWallet(Logger, EventListener, NetworkRetryManager[LNPeerAddr]):
     handle_error_code_from_failed_htlc = LNWallet.handle_error_code_from_failed_htlc
     is_trampoline_peer = LNWallet.is_trampoline_peer
     wait_for_received_pending_htlcs_to_get_removed = LNWallet.wait_for_received_pending_htlcs_to_get_removed
-    #on_event_proxy_set = LNWallet.on_event_proxy_set
+    on_proxy_changed = LNWallet.on_proxy_changed
     _decode_channel_update_msg = LNWallet._decode_channel_update_msg
     _handle_chanupd_from_failed_htlc = LNWallet._handle_chanupd_from_failed_htlc
     _on_maybe_forwarded_htlc_resolved = LNWallet._on_maybe_forwarded_htlc_resolved
     _force_close_channel = LNWallet._force_close_channel
-    suggest_splits = LNWallet.suggest_splits
 
 
 class MockTransport:
@@ -285,16 +277,20 @@ class MockTransport:
                 continue
             yield data
 
+
 class NoFeaturesTransport(MockTransport):
     """
     This answers the init message with a init that doesn't signal any features.
     Used for testing that we require DATA_LOSS_PROTECT.
     """
+
     def send_bytes(self, data):
         decoded = decode_msg(data)
         print(decoded)
         if decoded[0] == 'init':
-            self.queue.put_nowait(encode_msg('init', lflen=1, gflen=1, localfeatures=b"\x00", globalfeatures=b"\x00"))
+            self.queue.put_nowait(encode_msg(
+                'init', lflen=1, gflen=1, localfeatures=b"\x00", globalfeatures=b"\x00"))
+
 
 class PutIntoOthersQueueTransport(MockTransport):
     def __init__(self, keypair, name):
@@ -304,6 +300,7 @@ class PutIntoOthersQueueTransport(MockTransport):
 
     def send_bytes(self, data):
         self.other_mock_transport.queue.put_nowait(data)
+
 
 def transport_pair(k1, k2, name1, name2):
     t1 = PutIntoOthersQueueTransport(k1, name1)
@@ -318,26 +315,17 @@ class PeerInTests(Peer):
 
 
 high_fee_channel = {
-   'local_balance_msat': 10 * bitcoin.COIN * 1000 // 2,
-   'remote_balance_msat': 10 * bitcoin.COIN * 1000 // 2,
-   'local_base_fee_msat': 500_000,
-   'local_fee_rate_millionths': 500,
-   'remote_base_fee_msat': 500_000,
-   'remote_fee_rate_millionths': 500,
+    'local_balance_msat': 10 * bitcoin.COIN * 1000 // 2,
+    'remote_balance_msat': 10 * bitcoin.COIN * 1000 // 2,
+    'local_base_fee_msat': 500_000,
+    'local_fee_rate_millionths': 500,
+    'remote_base_fee_msat': 500_000,
+    'remote_fee_rate_millionths': 500,
 }
 
 low_fee_channel = {
     'local_balance_msat': 10 * bitcoin.COIN * 1000 // 2,
     'remote_balance_msat': 10 * bitcoin.COIN * 1000 // 2,
-    'local_base_fee_msat': 1_000,
-    'local_fee_rate_millionths': 1,
-    'remote_base_fee_msat': 1_000,
-    'remote_fee_rate_millionths': 1,
-}
-
-depleted_channel = {
-    'local_balance_msat': 0,
-    'remote_balance_msat': 10 * bitcoin.COIN * 1000,
     'local_base_fee_msat': 1_000,
     'local_fee_rate_millionths': 1,
     'remote_base_fee_msat': 1_000,
@@ -384,8 +372,12 @@ class Graph(NamedTuple):
     channels: Dict[Tuple[str, str], Channel]
 
 
-class PaymentDone(Exception): pass
-class SuccessfulTest(Exception): pass
+class PaymentDone(Exception):
+    pass
+
+
+class SuccessfulTest(Exception):
+    pass
 
 
 class TestPeer(TestCaseForTestnet):
@@ -404,11 +396,9 @@ class TestPeer(TestCaseForTestnet):
             async with OldTaskGroup() as group:
                 for lnworker in self._lnworkers_created:
                     await group.spawn(lnworker.stop())
-            for lnworker in self._lnworkers_created:
-                shutil.rmtree(lnworker._user_dir)
             self._lnworkers_created.clear()
         run(cleanup_lnworkers())
-        electrum.trampoline._TRAMPOLINE_NODES_UNITTESTS = {}
+
         super().tearDown()
 
     def prepare_peers(
@@ -423,8 +413,10 @@ class TestPeer(TestCaseForTestnet):
         bob_channel.node_id = k1.pubkey
         t1, t2 = transport_pair(k1, k2, alice_channel.name, bob_channel.name)
         q1, q2 = asyncio.Queue(), asyncio.Queue()
-        w1 = MockLNWallet(local_keypair=k1, chans=[alice_channel], tx_queue=q1, name=bob_channel.name)
-        w2 = MockLNWallet(local_keypair=k2, chans=[bob_channel], tx_queue=q2, name=alice_channel.name)
+        w1 = MockLNWallet(local_keypair=k1, chans=[
+                          alice_channel], tx_queue=q1, name=bob_channel.name)
+        w2 = MockLNWallet(local_keypair=k2, chans=[
+                          bob_channel], tx_queue=q2, name=alice_channel.name)
         self._lnworkers_created.extend([w1, w2])
         p1 = PeerInTests(w1, k2.pubkey, t1)
         p2 = PeerInTests(w2, k1.pubkey, t2)
@@ -459,23 +451,29 @@ class TestPeer(TestCaseForTestnet):
                     remote_msat=channel_def['remote_balance_msat'],
                 )
                 channels[(a, b)], channels[(b, a)] = channel_ab, channel_ba
-                transport_ab, transport_ba = transport_pair(keys[a], keys[b], channel_ab.name, channel_ba.name)
-                transports[(a, b)], transports[(b, a)] = transport_ab, transport_ba
+                transport_ab, transport_ba = transport_pair(
+                    keys[a], keys[b], channel_ab.name, channel_ba.name)
+                transports[(a, b)], transports[(b, a)
+                                               ] = transport_ab, transport_ba
                 # set fees
-                channel_ab.forwarding_fee_proportional_millionths = channel_def['local_fee_rate_millionths']
+                channel_ab.forwarding_fee_proportional_millionths = channel_def[
+                    'local_fee_rate_millionths']
                 channel_ab.forwarding_fee_base_msat = channel_def['local_base_fee_msat']
-                channel_ba.forwarding_fee_proportional_millionths = channel_def['remote_fee_rate_millionths']
+                channel_ba.forwarding_fee_proportional_millionths = channel_def[
+                    'remote_fee_rate_millionths']
                 channel_ba.forwarding_fee_base_msat = channel_def['remote_base_fee_msat']
 
         # create workers and peers
         for a, definition in graph_definition.items():
             channels_of_node = [c for k, c in channels.items() if k[0] == a]
-            workers[a] = MockLNWallet(local_keypair=keys[a], chans=channels_of_node, tx_queue=txs_queues[a], name=a)
+            workers[a] = MockLNWallet(
+                local_keypair=keys[a], chans=channels_of_node, tx_queue=txs_queues[a], name=a)
         self._lnworkers_created.extend(list(workers.values()))
 
         # create peers
         for ab in channels.keys():
-            peers[ab] = Peer(workers[ab[0]], keys[ab[1]].pubkey, transports[ab])
+            peers[ab] = Peer(
+                workers[ab[0]], keys[ab[1]].pubkey, transports[ab])
 
         # add peers to workers
         for a, w in workers.items():
@@ -491,7 +489,7 @@ class TestPeer(TestCaseForTestnet):
         # mark_open won't work if state is already OPEN.
         # so set it to FUNDED
         for channel_ab in channels.values():
-           channel_ab._state = ChannelState.FUNDED
+            channel_ab._state = ChannelState.FUNDED
 
         # this populates the channel graph:
         for ab, peer_ab in peers.items():
@@ -521,33 +519,38 @@ class TestPeer(TestCaseForTestnet):
         w2.save_preimage(RHASH, payment_preimage)
         w2.save_payment_info(info)
         if include_routing_hints:
-            routing_hints, trampoline_hints = w2.calc_routing_hints_for_invoice(amount_msat)
+            routing_hints, trampoline_hints = w2.calc_routing_hints_for_invoice(
+                amount_msat)
         else:
             routing_hints = []
             trampoline_hints = []
         invoice_features = w2.features.for_invoice()
         if invoice_features.supports(LnFeatures.PAYMENT_SECRET_OPT):
-            payment_secret = derive_payment_secret_from_payment_preimage(payment_preimage)
+            payment_secret = derive_payment_secret_from_payment_preimage(
+                payment_preimage)
         else:
             payment_secret = None
         lnaddr1 = LnAddr(
-                    paymenthash=RHASH,
-                    amount=amount_btc,
-                    tags=[('c', lnutil.MIN_FINAL_CLTV_EXPIRY_FOR_INVOICE),
-                          ('d', 'coffee'),
-                          ('9', invoice_features),
-                         ] + routing_hints + trampoline_hints,
-                    payment_secret=payment_secret,
+            paymenthash=RHASH,
+            amount=amount_btc,
+            tags=[('c', lnutil.MIN_FINAL_CLTV_EXPIRY_FOR_INVOICE),
+                  ('d', 'coffee'),
+                  ('9', invoice_features),
+                  ] + routing_hints + trampoline_hints,
+            payment_secret=payment_secret,
         )
         invoice = lnencode(lnaddr1, w2.node_keypair.privkey)
-        lnaddr2 = lndecode(invoice)  # unlike lnaddr1, this now has a pubkey set
+        # unlike lnaddr1, this now has a pubkey set
+        lnaddr2 = lndecode(invoice)
         return lnaddr2, invoice
 
     def test_reestablish(self):
         alice_channel, bob_channel = create_test_channels()
-        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(alice_channel, bob_channel)
+        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(
+            alice_channel, bob_channel)
         for chan in (alice_channel, bob_channel):
             chan.peer_state = PeerState.DISCONNECTED
+
         async def reestablish():
             await asyncio.gather(
                 p1.reestablish_channel(alice_channel),
@@ -555,7 +558,9 @@ class TestPeer(TestCaseForTestnet):
             self.assertEqual(alice_channel.peer_state, PeerState.GOOD)
             self.assertEqual(bob_channel.peer_state, PeerState.GOOD)
             gath.cancel()
-        gath = asyncio.gather(reestablish(), p1._message_loop(), p2._message_loop(), p1.htlc_switch(), p1.htlc_switch())
+        gath = asyncio.gather(reestablish(), p1._message_loop(
+        ), p2._message_loop(), p1.htlc_switch(), p1.htlc_switch())
+
         async def f():
             await gath
         with self.assertRaises(concurrent.futures.CancelledError):
@@ -564,27 +569,37 @@ class TestPeer(TestCaseForTestnet):
     @needs_test_with_all_chacha20_implementations
     def test_reestablish_with_old_state(self):
         random_seed = os.urandom(32)
-        alice_channel, bob_channel = create_test_channels(random_seed=random_seed)
-        alice_channel_0, bob_channel_0 = create_test_channels(random_seed=random_seed)  # these are identical
-        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(alice_channel, bob_channel)
+        alice_channel, bob_channel = create_test_channels(
+            random_seed=random_seed)
+        alice_channel_0, bob_channel_0 = create_test_channels(
+            random_seed=random_seed)  # these are identical
+        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(
+            alice_channel, bob_channel)
         lnaddr, pay_req = self.prepare_invoice(w2)
+
         async def pay():
             result, log = await w1.pay_invoice(pay_req)
             self.assertEqual(result, True)
             gath.cancel()
-        gath = asyncio.gather(pay(), p1._message_loop(), p2._message_loop(), p1.htlc_switch(), p2.htlc_switch())
+        gath = asyncio.gather(pay(), p1._message_loop(
+        ), p2._message_loop(), p1.htlc_switch(), p2.htlc_switch())
+
         async def f():
             await gath
         with self.assertRaises(concurrent.futures.CancelledError):
             run(f())
-        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(alice_channel_0, bob_channel)
+        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(
+            alice_channel_0, bob_channel)
         for chan in (alice_channel_0, bob_channel):
             chan.peer_state = PeerState.DISCONNECTED
+
         async def reestablish():
             await asyncio.gather(
                 p1.reestablish_channel(alice_channel_0),
                 p2.reestablish_channel(bob_channel))
-        gath = asyncio.gather(reestablish(), p1._message_loop(), p2._message_loop(), p1.htlc_switch(), p2.htlc_switch())
+        gath = asyncio.gather(reestablish(), p1._message_loop(
+        ), p2._message_loop(), p1.htlc_switch(), p2.htlc_switch())
+
         async def f():
             await gath
         with self.assertRaises(electrum.lnutil.RemoteMisbehaving):
@@ -594,7 +609,8 @@ class TestPeer(TestCaseForTestnet):
 
     @staticmethod
     def _send_fake_htlc(peer: Peer, chan: Channel) -> UpdateAddHtlc:
-        htlc = UpdateAddHtlc(amount_msat=10000, payment_hash=os.urandom(32), cltv_expiry=999, timestamp=1)
+        htlc = UpdateAddHtlc(amount_msat=10000, payment_hash=os.urandom(
+            32), cltv_expiry=999, timestamp=1)
         htlc = chan.add_htlc(htlc)
         peer.send_message(
             "update_add_htlc",
@@ -627,8 +643,10 @@ class TestPeer(TestCaseForTestnet):
         chan_AB, chan_BA = create_test_channels()
         k1, k2 = keypair(), keypair()
         # note: we don't start peer.htlc_switch() so that the fake htlcs are left alone.
+
         async def f():
-            p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(chan_AB, chan_BA, k1=k1, k2=k2)
+            p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(
+                chan_AB, chan_BA, k1=k1, k2=k2)
             async with OldTaskGroup() as group:
                 await group.spawn(p1._message_loop())
                 await group.spawn(p2._message_loop())
@@ -636,12 +654,14 @@ class TestPeer(TestCaseForTestnet):
                 await p2.initialized
                 self._send_fake_htlc(p2, chan_BA)
                 self._send_fake_htlc(p1, chan_AB)
-                p2.transport.queue.put_nowait(asyncio.Event())  # break Bob's incoming pipe
+                # break Bob's incoming pipe
+                p2.transport.queue.put_nowait(asyncio.Event())
                 self.assertTrue(p2.maybe_send_commitment(chan_BA))
                 await p1.received_commitsig_event.wait()
                 await group.cancel_remaining()
             # simulating disconnection. recreate transports.
-            p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(chan_AB, chan_BA, k1=k1, k2=k2)
+            p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(
+                chan_AB, chan_BA, k1=k1, k2=k2)
             for chan in (chan_AB, chan_BA):
                 chan.peer_state = PeerState.DISCONNECTED
             async with OldTaskGroup() as group:
@@ -681,8 +701,10 @@ class TestPeer(TestCaseForTestnet):
         chan_AB, chan_BA = create_test_channels()
         k1, k2 = keypair(), keypair()
         # note: we don't start peer.htlc_switch() so that the fake htlcs are left alone.
+
         async def f():
-            p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(chan_AB, chan_BA, k1=k1, k2=k2)
+            p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(
+                chan_AB, chan_BA, k1=k1, k2=k2)
             async with OldTaskGroup() as group:
                 await group.spawn(p1._message_loop())
                 await group.spawn(p2._message_loop())
@@ -690,13 +712,15 @@ class TestPeer(TestCaseForTestnet):
                 await p2.initialized
                 self._send_fake_htlc(p2, chan_BA)
                 self._send_fake_htlc(p1, chan_AB)
-                p2.transport.queue.put_nowait(asyncio.Event())  # break Bob's incoming pipe
+                # break Bob's incoming pipe
+                p2.transport.queue.put_nowait(asyncio.Event())
                 self.assertTrue(p1.maybe_send_commitment(chan_AB))
                 self.assertTrue(p2.maybe_send_commitment(chan_BA))
                 await p1.received_commitsig_event.wait()
                 await group.cancel_remaining()
             # simulating disconnection. recreate transports.
-            p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(chan_AB, chan_BA, k1=k1, k2=k2)
+            p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(
+                chan_AB, chan_BA, k1=k1, k2=k2)
             for chan in (chan_AB, chan_BA):
                 chan.peer_state = PeerState.DISCONNECTED
             async with OldTaskGroup() as group:
@@ -716,24 +740,23 @@ class TestPeer(TestCaseForTestnet):
         with self.assertRaises(SuccessfulTest):
             run(f())
 
-    def _test_simple_payment(self, trampoline: bool):
+    @needs_test_with_all_chacha20_implementations
+    def test_payment(self):
         """Alice pays Bob a single HTLC via direct channel."""
         alice_channel, bob_channel = create_test_channels()
-        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(alice_channel, bob_channel)
-        async def turn_on_trampoline_alice():
-            if w1.network.channel_db:
-                w1.network.channel_db.stop()
-                await w1.network.channel_db.stopped_event.wait()
-                w1.network.channel_db = None
+        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(
+            alice_channel, bob_channel)
+
         async def pay(lnaddr, pay_req):
-            self.assertEqual(PR_UNPAID, w2.get_payment_status(lnaddr.paymenthash))
+            self.assertEqual(
+                PR_UNPAID, w2.get_payment_status(lnaddr.paymenthash))
             result, log = await w1.pay_invoice(pay_req)
             self.assertTrue(result)
-            self.assertEqual(PR_PAID, w2.get_payment_status(lnaddr.paymenthash))
+            self.assertEqual(
+                PR_PAID, w2.get_payment_status(lnaddr.paymenthash))
             raise PaymentDone()
+
         async def f():
-            if trampoline:
-                await turn_on_trampoline_alice()
             async with OldTaskGroup() as group:
                 await group.spawn(p1._message_loop())
                 await group.spawn(p1.htlc_switch())
@@ -742,22 +765,11 @@ class TestPeer(TestCaseForTestnet):
                 await asyncio.sleep(0.01)
                 lnaddr, pay_req = self.prepare_invoice(w2)
                 invoice_features = lnaddr.get_features()
-                self.assertFalse(invoice_features.supports(LnFeatures.BASIC_MPP_OPT))
+                self.assertFalse(invoice_features.supports(
+                    LnFeatures.BASIC_MPP_OPT))
                 await group.spawn(pay(lnaddr, pay_req))
-        # declare bob as trampoline node
-        electrum.trampoline._TRAMPOLINE_NODES_UNITTESTS = {
-            'bob': LNPeerAddr(host="127.0.0.1", port=9735, pubkey=w2.node_keypair.pubkey),
-        }
         with self.assertRaises(PaymentDone):
             run(f())
-
-    @needs_test_with_all_chacha20_implementations
-    def test_simple_payment(self):
-        self._test_simple_payment(trampoline=False)
-
-    @needs_test_with_all_chacha20_implementations
-    def test_simple_payment_trampoline(self):
-        self._test_simple_payment(trampoline=True)
 
     @needs_test_with_all_chacha20_implementations
     def test_payment_race(self):
@@ -767,7 +779,9 @@ class TestPeer(TestCaseForTestnet):
         the respective HTLCs until those are irrevocably committed to.
         """
         alice_channel, bob_channel = create_test_channels()
-        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(alice_channel, bob_channel)
+        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(
+            alice_channel, bob_channel)
+
         async def pay():
             await asyncio.wait_for(p1.initialized, 1)
             await asyncio.wait_for(p2.initialized, 1)
@@ -792,7 +806,6 @@ class TestPeer(TestCaseForTestnet):
                 min_cltv_expiry=lnaddr2.get_min_final_cltv_expiry(),
                 payment_secret=lnaddr2.payment_secret,
                 trampoline_fee_level=0,
-                trampoline_route=None,
             )
             p1.maybe_send_commitment = _maybe_send_commitment1
             # bob sends htlc BUT NOT COMMITMENT_SIGNED
@@ -808,7 +821,6 @@ class TestPeer(TestCaseForTestnet):
                 min_cltv_expiry=lnaddr1.get_min_final_cltv_expiry(),
                 payment_secret=lnaddr1.payment_secret,
                 trampoline_fee_level=0,
-                trampoline_route=None,
             )
             p2.maybe_send_commitment = _maybe_send_commitment2
             # sleep a bit so that they both receive msgs sent so far
@@ -834,61 +846,79 @@ class TestPeer(TestCaseForTestnet):
         with self.assertRaises(PaymentDone):
             run(f())
 
-    #@unittest.skip("too expensive")
-    #@needs_test_with_all_chacha20_implementations
+    # @unittest.skip("too expensive")
+    # @needs_test_with_all_chacha20_implementations
     def test_payments_stresstest(self):
         alice_channel, bob_channel = create_test_channels()
-        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(alice_channel, bob_channel)
+        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(
+            alice_channel, bob_channel)
         alice_init_balance_msat = alice_channel.balance(HTLCOwner.LOCAL)
         bob_init_balance_msat = bob_channel.balance(HTLCOwner.LOCAL)
         num_payments = 50
-        payment_value_msat = 10_000_000  # make it large enough so that there are actually HTLCs on the ctx
+        # make it large enough so that there are actually HTLCs on the ctx
+        payment_value_msat = 10_000_000
         max_htlcs_in_flight = asyncio.Semaphore(5)
+
         async def single_payment(pay_req):
             async with max_htlcs_in_flight:
                 await w1.pay_invoice(pay_req)
+
         async def many_payments():
             async with OldTaskGroup() as group:
                 for i in range(num_payments):
-                    lnaddr, pay_req = self.prepare_invoice(w2, amount_msat=payment_value_msat)
+                    lnaddr, pay_req = self.prepare_invoice(
+                        w2, amount_msat=payment_value_msat)
                     await group.spawn(single_payment(pay_req))
             gath.cancel()
-        gath = asyncio.gather(many_payments(), p1._message_loop(), p2._message_loop(), p1.htlc_switch(), p2.htlc_switch())
+        gath = asyncio.gather(many_payments(), p1._message_loop(
+        ), p2._message_loop(), p1.htlc_switch(), p2.htlc_switch())
+
         async def f():
             await gath
         with self.assertRaises(concurrent.futures.CancelledError):
             run(f())
-        self.assertEqual(alice_init_balance_msat - num_payments * payment_value_msat, alice_channel.balance(HTLCOwner.LOCAL))
-        self.assertEqual(alice_init_balance_msat - num_payments * payment_value_msat, bob_channel.balance(HTLCOwner.REMOTE))
-        self.assertEqual(bob_init_balance_msat + num_payments * payment_value_msat, bob_channel.balance(HTLCOwner.LOCAL))
-        self.assertEqual(bob_init_balance_msat + num_payments * payment_value_msat, alice_channel.balance(HTLCOwner.REMOTE))
+        self.assertEqual(alice_init_balance_msat - num_payments *
+                         payment_value_msat, alice_channel.balance(HTLCOwner.LOCAL))
+        self.assertEqual(alice_init_balance_msat - num_payments *
+                         payment_value_msat, bob_channel.balance(HTLCOwner.REMOTE))
+        self.assertEqual(bob_init_balance_msat + num_payments *
+                         payment_value_msat, bob_channel.balance(HTLCOwner.LOCAL))
+        self.assertEqual(bob_init_balance_msat + num_payments *
+                         payment_value_msat, alice_channel.balance(HTLCOwner.REMOTE))
 
     @needs_test_with_all_chacha20_implementations
     def test_payment_multihop(self):
-        graph = self.prepare_chans_and_peers_in_graph(GRAPH_DEFINITIONS['square_graph'])
+        graph = self.prepare_chans_and_peers_in_graph(
+            GRAPH_DEFINITIONS['square_graph'])
         peers = graph.peers.values()
+
         async def pay(lnaddr, pay_req):
-            self.assertEqual(PR_UNPAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
+            self.assertEqual(
+                PR_UNPAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
             result, log = await graph.workers['alice'].pay_invoice(pay_req)
             self.assertTrue(result)
-            self.assertEqual(PR_PAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
+            self.assertEqual(
+                PR_PAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
             raise PaymentDone()
+
         async def f():
             async with OldTaskGroup() as group:
                 for peer in peers:
                     await group.spawn(peer._message_loop())
                     await group.spawn(peer.htlc_switch())
-                for peer in peers:
-                    await peer.initialized
-                lnaddr, pay_req = self.prepare_invoice(graph.workers['dave'], include_routing_hints=True)
+                await asyncio.sleep(0.2)
+                lnaddr, pay_req = self.prepare_invoice(
+                    graph.workers['dave'], include_routing_hints=True)
                 await group.spawn(pay(lnaddr, pay_req))
         with self.assertRaises(PaymentDone):
             run(f())
 
     @needs_test_with_all_chacha20_implementations
     def test_payment_multihop_with_preselected_path(self):
-        graph = self.prepare_chans_and_peers_in_graph(GRAPH_DEFINITIONS['square_graph'])
+        graph = self.prepare_chans_and_peers_in_graph(
+            GRAPH_DEFINITIONS['square_graph'])
         peers = graph.peers.values()
+
         async def pay(pay_req):
             with self.subTest(msg="bad path: edges do not chain together"):
                 path = [PathEdge(start_node=graph.workers['alice'].node_keypair.pubkey,
@@ -918,39 +948,48 @@ class TestPeer(TestCaseForTestnet):
                     [edge.short_channel_id for edge in path],
                     [edge.short_channel_id for edge in log[0].route])
             raise PaymentDone()
+
         async def f():
             async with OldTaskGroup() as group:
                 for peer in peers:
                     await group.spawn(peer._message_loop())
                     await group.spawn(peer.htlc_switch())
-                for peer in peers:
-                    await peer.initialized
-                lnaddr, pay_req = self.prepare_invoice(graph.workers['dave'], include_routing_hints=True)
+                await asyncio.sleep(0.2)
+                lnaddr, pay_req = self.prepare_invoice(
+                    graph.workers['dave'], include_routing_hints=True)
                 await group.spawn(pay(pay_req))
         with self.assertRaises(PaymentDone):
             run(f())
 
     @needs_test_with_all_chacha20_implementations
     def test_payment_multihop_temp_node_failure(self):
-        graph = self.prepare_chans_and_peers_in_graph(GRAPH_DEFINITIONS['square_graph'])
-        graph.workers['bob'].network.config.set_key('test_fail_htlcs_with_temp_node_failure', True)
-        graph.workers['carol'].network.config.set_key('test_fail_htlcs_with_temp_node_failure', True)
+        graph = self.prepare_chans_and_peers_in_graph(
+            GRAPH_DEFINITIONS['square_graph'])
+        graph.workers['bob'].network.config.set_key(
+            'test_fail_htlcs_with_temp_node_failure', True)
+        graph.workers['carol'].network.config.set_key(
+            'test_fail_htlcs_with_temp_node_failure', True)
         peers = graph.peers.values()
+
         async def pay(lnaddr, pay_req):
-            self.assertEqual(PR_UNPAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
+            self.assertEqual(
+                PR_UNPAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
             result, log = await graph.workers['alice'].pay_invoice(pay_req)
             self.assertFalse(result)
-            self.assertEqual(PR_UNPAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
-            self.assertEqual(OnionFailureCode.TEMPORARY_NODE_FAILURE, log[0].failure_msg.code)
+            self.assertEqual(
+                PR_UNPAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
+            self.assertEqual(
+                OnionFailureCode.TEMPORARY_NODE_FAILURE, log[0].failure_msg.code)
             raise PaymentDone()
+
         async def f():
             async with OldTaskGroup() as group:
                 for peer in peers:
                     await group.spawn(peer._message_loop())
                     await group.spawn(peer.htlc_switch())
-                for peer in peers:
-                    await peer.initialized
-                lnaddr, pay_req = self.prepare_invoice(graph.workers['dave'], include_routing_hints=True)
+                await asyncio.sleep(0.2)
+                lnaddr, pay_req = self.prepare_invoice(
+                    graph.workers['dave'], include_routing_hints=True)
                 await group.spawn(pay(lnaddr, pay_req))
         with self.assertRaises(PaymentDone):
             run(f())
@@ -959,42 +998,55 @@ class TestPeer(TestCaseForTestnet):
     def test_payment_multihop_route_around_failure(self):
         # Alice will pay Dave. Alice first tries A->C->D route, due to lower fees, but Carol
         # will fail the htlc and get blacklisted. Alice will then try A->B->D and succeed.
-        graph = self.prepare_chans_and_peers_in_graph(GRAPH_DEFINITIONS['square_graph'])
-        graph.workers['carol'].network.config.set_key('test_fail_htlcs_with_temp_node_failure', True)
+        graph = self.prepare_chans_and_peers_in_graph(
+            GRAPH_DEFINITIONS['square_graph'])
+        graph.workers['carol'].network.config.set_key(
+            'test_fail_htlcs_with_temp_node_failure', True)
         peers = graph.peers.values()
+
         async def pay(lnaddr, pay_req):
-            self.assertEqual(500000000000, graph.channels[('alice', 'bob')].balance(LOCAL))
-            self.assertEqual(500000000000, graph.channels[('dave', 'bob')].balance(LOCAL))
-            self.assertEqual(PR_UNPAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
+            self.assertEqual(
+                500000000000, graph.channels[('alice', 'bob')].balance(LOCAL))
+            self.assertEqual(
+                500000000000, graph.channels[('dave', 'bob')].balance(LOCAL))
+            self.assertEqual(
+                PR_UNPAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
             result, log = await graph.workers['alice'].pay_invoice(pay_req, attempts=2)
             self.assertEqual(2, len(log))
             self.assertTrue(result)
-            self.assertEqual(PR_PAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
+            self.assertEqual(
+                PR_PAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
             self.assertEqual([graph.channels[('alice', 'carol')].short_channel_id, graph.channels[('carol', 'dave')].short_channel_id],
                              [edge.short_channel_id for edge in log[0].route])
             self.assertEqual([graph.channels[('alice', 'bob')].short_channel_id, graph.channels[('bob', 'dave')].short_channel_id],
                              [edge.short_channel_id for edge in log[1].route])
-            self.assertEqual(OnionFailureCode.TEMPORARY_NODE_FAILURE, log[0].failure_msg.code)
-            self.assertEqual(499899450000, graph.channels[('alice', 'bob')].balance(LOCAL))
-            await asyncio.sleep(0.2)  # wait for COMMITMENT_SIGNED / REVACK msgs to update balance
-            self.assertEqual(500100000000, graph.channels[('dave', 'bob')].balance(LOCAL))
+            self.assertEqual(
+                OnionFailureCode.TEMPORARY_NODE_FAILURE, log[0].failure_msg.code)
+            self.assertEqual(
+                499899450000, graph.channels[('alice', 'bob')].balance(LOCAL))
+            # wait for COMMITMENT_SIGNED / REVACK msgs to update balance
+            await asyncio.sleep(0.2)
+            self.assertEqual(
+                500100000000, graph.channels[('dave', 'bob')].balance(LOCAL))
             raise PaymentDone()
+
         async def f():
             async with OldTaskGroup() as group:
                 for peer in peers:
                     await group.spawn(peer._message_loop())
                     await group.spawn(peer.htlc_switch())
-                for peer in peers:
-                    await peer.initialized
-                lnaddr, pay_req = self.prepare_invoice(graph.workers['dave'], include_routing_hints=True)
+                await asyncio.sleep(0.2)
+                lnaddr, pay_req = self.prepare_invoice(
+                    graph.workers['dave'], include_routing_hints=True)
                 invoice_features = lnaddr.get_features()
-                self.assertFalse(invoice_features.supports(LnFeatures.BASIC_MPP_OPT))
+                self.assertFalse(invoice_features.supports(
+                    LnFeatures.BASIC_MPP_OPT))
                 await group.spawn(pay(lnaddr, pay_req))
         with self.assertRaises(PaymentDone):
             run(f())
 
     @needs_test_with_all_chacha20_implementations
-    def test_payment_with_temp_channel_failure_and_liquidity_hints(self):
+    def test_payment_with_temp_channel_failure_and_liquidty_hints(self):
         # prepare channels such that a temporary channel failure happens at c->d
         graph_definition = GRAPH_DEFINITIONS['square_graph'].copy()
         graph_definition['alice']['channels']['carol']['local_balance_msat'] = 200_000_000
@@ -1014,13 +1066,17 @@ class TestPeer(TestCaseForTestnet):
         # 2. along a->b->d with success
         amount_to_pay = 100_000_000
         peers = graph.peers.values()
+
         async def pay(lnaddr, pay_req):
-            self.assertEqual(PR_UNPAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
+            self.assertEqual(
+                PR_UNPAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
             result, log = await graph.workers['alice'].pay_invoice(pay_req, attempts=3)
             self.assertTrue(result)
             self.assertEqual(2, len(log))
-            self.assertEqual(PR_PAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
-            self.assertEqual(OnionFailureCode.TEMPORARY_CHANNEL_FAILURE, log[0].failure_msg.code)
+            self.assertEqual(
+                PR_PAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
+            self.assertEqual(
+                OnionFailureCode.TEMPORARY_CHANNEL_FAILURE, log[0].failure_msg.code)
 
             liquidity_hints = graph.workers['alice'].network.path_finder.liquidity_hints
             pubkey_a = graph.workers['alice'].node_keypair.pubkey
@@ -1028,39 +1084,51 @@ class TestPeer(TestCaseForTestnet):
             pubkey_c = graph.workers['carol'].node_keypair.pubkey
             pubkey_d = graph.workers['dave'].node_keypair.pubkey
             # check liquidity hints for failing route:
-            hint_ac = liquidity_hints.get_hint(graph.channels[('alice', 'carol')].short_channel_id)
-            hint_cd = liquidity_hints.get_hint(graph.channels[('carol', 'dave')].short_channel_id)
-            self.assertEqual(amount_to_pay, hint_ac.can_send(pubkey_a < pubkey_c))
+            hint_ac = liquidity_hints.get_hint(
+                graph.channels[('alice', 'carol')].short_channel_id)
+            hint_cd = liquidity_hints.get_hint(
+                graph.channels[('carol', 'dave')].short_channel_id)
+            self.assertEqual(
+                amount_to_pay, hint_ac.can_send(pubkey_a < pubkey_c))
             self.assertEqual(None, hint_ac.cannot_send(pubkey_a < pubkey_c))
             self.assertEqual(None, hint_cd.can_send(pubkey_c < pubkey_d))
-            self.assertEqual(amount_to_pay, hint_cd.cannot_send(pubkey_c < pubkey_d))
+            self.assertEqual(
+                amount_to_pay, hint_cd.cannot_send(pubkey_c < pubkey_d))
             # check liquidity hints for successful route:
-            hint_ab = liquidity_hints.get_hint(graph.channels[('alice', 'bob')].short_channel_id)
-            hint_bd = liquidity_hints.get_hint(graph.channels[('bob', 'dave')].short_channel_id)
-            self.assertEqual(amount_to_pay, hint_ab.can_send(pubkey_a < pubkey_b))
+            hint_ab = liquidity_hints.get_hint(
+                graph.channels[('alice', 'bob')].short_channel_id)
+            hint_bd = liquidity_hints.get_hint(
+                graph.channels[('bob', 'dave')].short_channel_id)
+            self.assertEqual(
+                amount_to_pay, hint_ab.can_send(pubkey_a < pubkey_b))
             self.assertEqual(None, hint_ab.cannot_send(pubkey_a < pubkey_b))
-            self.assertEqual(amount_to_pay, hint_bd.can_send(pubkey_b < pubkey_d))
+            self.assertEqual(
+                amount_to_pay, hint_bd.can_send(pubkey_b < pubkey_d))
             self.assertEqual(None, hint_bd.cannot_send(pubkey_b < pubkey_d))
 
             raise PaymentDone()
+
         async def f():
             async with OldTaskGroup() as group:
                 for peer in peers:
                     await group.spawn(peer._message_loop())
                     await group.spawn(peer.htlc_switch())
-                for peer in peers:
-                    await peer.initialized
-                lnaddr, pay_req = self.prepare_invoice(graph.workers['dave'], amount_msat=amount_to_pay, include_routing_hints=True)
+                await asyncio.sleep(0.2)
+                lnaddr, pay_req = self.prepare_invoice(
+                    graph.workers['dave'], amount_msat=amount_to_pay, include_routing_hints=True)
                 await group.spawn(pay(lnaddr, pay_req))
         with self.assertRaises(PaymentDone):
             run(f())
 
     def _run_mpp(self, graph, fail_kwargs, success_kwargs):
         """Tests a multipart payment scenario for failing and successful cases."""
-        self.assertEqual(500_000_000_000, graph.channels[('alice', 'bob')].balance(LOCAL))
-        self.assertEqual(500_000_000_000, graph.channels[('alice', 'carol')].balance(LOCAL))
+        self.assertEqual(
+            500_000_000_000, graph.channels[('alice', 'bob')].balance(LOCAL))
+        self.assertEqual(500_000_000_000, graph.channels[(
+            'alice', 'carol')].balance(LOCAL))
         amount_to_pay = 600_000_000_000
         peers = graph.peers.values()
+
         async def pay(
                 attempts=1,
                 alice_uses_trampoline=False,
@@ -1081,15 +1149,18 @@ class TestPeer(TestCaseForTestnet):
                     graph.workers['alice'].network.channel_db = None
             else:
                 assert graph.workers['alice'].network.channel_db is not None
-            lnaddr, pay_req = self.prepare_invoice(graph.workers['dave'], include_routing_hints=True, amount_msat=amount_to_pay)
-            self.assertEqual(PR_UNPAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
+            lnaddr, pay_req = self.prepare_invoice(
+                graph.workers['dave'], include_routing_hints=True, amount_msat=amount_to_pay)
+            self.assertEqual(
+                PR_UNPAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
             result, log = await graph.workers['alice'].pay_invoice(pay_req, attempts=attempts)
             if not bob_forwarding:
                 # reset to previous state, sleep 2s so that the second htlc can time out
                 graph.workers['bob'].enable_htlc_forwarding = True
                 await asyncio.sleep(2)
             if result:
-                self.assertEqual(PR_PAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
+                self.assertEqual(
+                    PR_PAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
                 raise PaymentDone()
             else:
                 raise NoPathFound()
@@ -1099,8 +1170,7 @@ class TestPeer(TestCaseForTestnet):
                 for peer in peers:
                     await group.spawn(peer._message_loop())
                     await group.spawn(peer.htlc_switch())
-                for peer in peers:
-                    await peer.initialized
+                await asyncio.sleep(0.2)
                 await group.spawn(pay(**kwargs))
 
         if fail_kwargs:
@@ -1112,15 +1182,19 @@ class TestPeer(TestCaseForTestnet):
 
     @needs_test_with_all_chacha20_implementations
     def test_payment_multipart_with_timeout(self):
-        graph = self.prepare_chans_and_peers_in_graph(GRAPH_DEFINITIONS['square_graph'])
-        self._run_mpp(graph, {'bob_forwarding': False}, {'bob_forwarding': True})
+        graph = self.prepare_chans_and_peers_in_graph(
+            GRAPH_DEFINITIONS['square_graph'])
+        self._run_mpp(graph, {'bob_forwarding': False},
+                      {'bob_forwarding': True})
 
     @needs_test_with_all_chacha20_implementations
     def test_payment_multipart(self):
-        graph = self.prepare_chans_and_peers_in_graph(GRAPH_DEFINITIONS['square_graph'])
+        graph = self.prepare_chans_and_peers_in_graph(
+            GRAPH_DEFINITIONS['square_graph'])
         self._run_mpp(graph, {'mpp_invoice': False}, {'mpp_invoice': True})
 
-    def _run_trampoline_payment(self, is_legacy, direct, drop_dave= []):
+    @needs_test_with_all_chacha20_implementations
+    def test_payment_trampoline(self):
         async def turn_on_trampoline_alice():
             if graph.workers['alice'].network.channel_db:
                 graph.workers['alice'].network.channel_db.stop()
@@ -1128,18 +1202,13 @@ class TestPeer(TestCaseForTestnet):
                 graph.workers['alice'].network.channel_db = None
 
         async def pay(lnaddr, pay_req):
-            self.assertEqual(PR_UNPAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
+            self.assertEqual(
+                PR_UNPAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
             result, log = await graph.workers['alice'].pay_invoice(pay_req, attempts=10)
-            if result:
-                self.assertEqual(PR_PAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
-                raise PaymentDone()
-            else:
-                raise NoPathFound()
-
-        def do_drop_dave(t):
-            # this will trigger UNKNOWN_NEXT_PEER
-            dave_node_id = graph.workers['dave'].node_keypair.pubkey
-            graph.workers[t].peers.pop(dave_node_id)
+            self.assertTrue(result)
+            self.assertEqual(
+                PR_PAID, graph.workers['dave'].get_payment_status(lnaddr.paymenthash))
+            raise PaymentDone()
 
         async def f():
             await turn_on_trampoline_alice()
@@ -1147,81 +1216,68 @@ class TestPeer(TestCaseForTestnet):
                 for peer in peers:
                     await group.spawn(peer._message_loop())
                     await group.spawn(peer.htlc_switch())
-                for peer in peers:
-                    await peer.initialized
-                lnaddr, pay_req = self.prepare_invoice(graph.workers['dave'], include_routing_hints=True)
-                for p in drop_dave:
-                    do_drop_dave(p)
+                await asyncio.sleep(0.2)
+                lnaddr, pay_req = self.prepare_invoice(
+                    graph.workers['dave'], include_routing_hints=True)
                 await group.spawn(pay(lnaddr, pay_req))
 
-        graph_definition = GRAPH_DEFINITIONS['square_graph'].copy()
-        if not direct:
-            # deplete channel from alice to carol
-            graph_definition['alice']['channels']['carol'] = depleted_channel
-            # insert a channel from bob to carol
+        for is_legacy in (True, False):
+            graph_definition = GRAPH_DEFINITIONS['square_graph'].copy()
+            # insert a channel from bob to carol for faster tests,
+            # otherwise will fail randomly
             graph_definition['bob']['channels']['carol'] = high_fee_channel
+            graph = self.prepare_chans_and_peers_in_graph(graph_definition)
+            peers = graph.peers.values()
+            if is_legacy:
+                # turn off trampoline features
+                graph.workers['dave'].features = graph.workers['dave'].features ^ LnFeatures.OPTION_TRAMPOLINE_ROUTING_OPT
 
-        graph = self.prepare_chans_and_peers_in_graph(graph_definition)
-        peers = graph.peers.values()
-        if is_legacy:
-            # turn off trampoline features in invoice
-            graph.workers['dave'].features = graph.workers['dave'].features ^ LnFeatures.OPTION_TRAMPOLINE_ROUTING_OPT
+            # declare routing nodes as trampoline nodes
+            electrum.trampoline._TRAMPOLINE_NODES_UNITTESTS = {
+                graph.workers['bob'].name: LNPeerAddr(host="127.0.0.1", port=9735, pubkey=graph.workers['bob'].node_keypair.pubkey),
+                graph.workers['carol'].name: LNPeerAddr(host="127.0.0.1", port=9735, pubkey=graph.workers['carol'].node_keypair.pubkey),
+            }
 
-        # declare routing nodes as trampoline nodes
-        electrum.trampoline._TRAMPOLINE_NODES_UNITTESTS = {
-            graph.workers['bob'].name: LNPeerAddr(host="127.0.0.1", port=9735, pubkey=graph.workers['bob'].node_keypair.pubkey),
-            graph.workers['carol'].name: LNPeerAddr(host="127.0.0.1", port=9735, pubkey=graph.workers['carol'].node_keypair.pubkey),
-        }
-
-        run(f())
-
-    @needs_test_with_all_chacha20_implementations
-    def test_payment_trampoline_legacy(self):
-        with self.assertRaises(PaymentDone):
-            self._run_trampoline_payment(is_legacy=True, direct=False)
-
-    @needs_test_with_all_chacha20_implementations
-    def test_payment_trampoline_e2e_direct(self):
-        with self.assertRaises(PaymentDone):
-            self._run_trampoline_payment(is_legacy=False, direct=True)
-
-    @needs_test_with_all_chacha20_implementations
-    def test_payment_trampoline_e2e_indirect(self):
-        # must use two trampolines
-        with self.assertRaises(PaymentDone):
-            self._run_trampoline_payment(is_legacy=False, direct=False, drop_dave=['bob'])
-        # both trampolines drop dave
-        with self.assertRaises(NoPathFound):
-            self._run_trampoline_payment(is_legacy=False, direct=False, drop_dave=['bob', 'carol'])
+            with self.assertRaises(PaymentDone):
+                run(f())
 
     @needs_test_with_all_chacha20_implementations
     def test_payment_multipart_trampoline_e2e(self):
-        graph = self.prepare_chans_and_peers_in_graph(GRAPH_DEFINITIONS['square_graph'])
+        graph = self.prepare_chans_and_peers_in_graph(
+            GRAPH_DEFINITIONS['square_graph'])
         electrum.trampoline._TRAMPOLINE_NODES_UNITTESTS = {
             graph.workers['bob'].name: LNPeerAddr(host="127.0.0.1", port=9735, pubkey=graph.workers['bob'].node_keypair.pubkey),
             graph.workers['carol'].name: LNPeerAddr(host="127.0.0.1", port=9735, pubkey=graph.workers['carol'].node_keypair.pubkey),
         }
-        # end-to-end trampoline: we attempt
-        # * a payment with one trial: fails, because
-        #   we need at least one trial because the initial fees are too low
-        # * a payment with several trials: should succeed
-        self._run_mpp(
-            graph,
-            fail_kwargs={'alice_uses_trampoline': True, 'attempts': 1},
-            success_kwargs={'alice_uses_trampoline': True, 'attempts': 30})
+        try:
+            # end-to-end trampoline: we attempt
+            # * a payment with one trial: fails, because
+            #   we need at least one trial because the initial fees are too low
+            # * a payment with several trials: should succeed
+            self._run_mpp(
+                graph,
+                fail_kwargs={'alice_uses_trampoline': True, 'attempts': 1},
+                success_kwargs={'alice_uses_trampoline': True, 'attempts': 30})
+        finally:
+            electrum.trampoline._TRAMPOLINE_NODES_UNITTESTS = {}
 
     @needs_test_with_all_chacha20_implementations
     def test_payment_multipart_trampoline_legacy(self):
-        graph = self.prepare_chans_and_peers_in_graph(GRAPH_DEFINITIONS['square_graph'])
+        graph = self.prepare_chans_and_peers_in_graph(
+            GRAPH_DEFINITIONS['square_graph'])
         electrum.trampoline._TRAMPOLINE_NODES_UNITTESTS = {
             graph.workers['bob'].name: LNPeerAddr(host="127.0.0.1", port=9735, pubkey=graph.workers['bob'].node_keypair.pubkey),
             graph.workers['carol'].name: LNPeerAddr(host="127.0.0.1", port=9735, pubkey=graph.workers['carol'].node_keypair.pubkey),
         }
-        # trampoline-to-legacy: this is restricted, as there are no forwarders capable of doing this
-        self._run_mpp(
-            graph,
-            fail_kwargs={'alice_uses_trampoline': True, 'attempts': 30, 'disable_trampoline_receiving': True},
-            success_kwargs={})
+        try:
+            # trampoline-to-legacy: this is restricted, as there are no forwarders capable of doing this
+            self._run_mpp(
+                graph,
+                fail_kwargs={'alice_uses_trampoline': True,
+                             'attempts': 30, 'disable_trampoline_receiving': True},
+                success_kwargs={})
+        finally:
+            electrum.trampoline._TRAMPOLINE_NODES_UNITTESTS = {}
 
     @needs_test_with_all_chacha20_implementations
     def test_fail_pending_htlcs_on_shutdown(self):
@@ -1229,29 +1285,42 @@ class TestPeer(TestCaseForTestnet):
         Dave shuts down (stops wallet).
         We test if Dave fails the pending HTLCs during shutdown.
         """
-        graph = self.prepare_chans_and_peers_in_graph(GRAPH_DEFINITIONS['square_graph'])
-        self.assertEqual(500_000_000_000, graph.channels[('alice', 'bob')].balance(LOCAL))
-        self.assertEqual(500_000_000_000, graph.channels[('alice', 'carol')].balance(LOCAL))
+        graph = self.prepare_chans_and_peers_in_graph(
+            GRAPH_DEFINITIONS['square_graph'])
+        self.assertEqual(
+            500_000_000_000, graph.channels[('alice', 'bob')].balance(LOCAL))
+        self.assertEqual(500_000_000_000, graph.channels[(
+            'alice', 'carol')].balance(LOCAL))
         amount_to_pay = 600_000_000_000
         peers = graph.peers.values()
         graph.workers['dave'].MPP_EXPIRY = 120
         graph.workers['dave'].TIMEOUT_SHUTDOWN_FAIL_PENDING_HTLCS = 3
+
         async def pay():
             graph.workers['dave'].features |= LnFeatures.BASIC_MPP_OPT
-            graph.workers['bob'].enable_htlc_forwarding = False  # Bob will hold forwarded HTLCs
+            # Bob will hold forwarded HTLCs
+            graph.workers['bob'].enable_htlc_forwarding = False
             assert graph.workers['alice'].network.channel_db is not None
-            lnaddr, pay_req = self.prepare_invoice(graph.workers['dave'], include_routing_hints=True, amount_msat=amount_to_pay)
-            result, log = await graph.workers['alice'].pay_invoice(pay_req, attempts=1)
-        async def stop():
-            hm = graph.channels[('dave', 'carol')].hm
-            while len(hm.htlcs(LOCAL)) == 0 or len(hm.htlcs(REMOTE)) == 0:
-                await asyncio.sleep(0.1)
-            self.assertTrue(len(hm.htlcs(LOCAL)) > 0)
-            self.assertTrue(len(hm.htlcs(REMOTE)) > 0)
+            lnaddr, pay_req = self.prepare_invoice(
+                graph.workers['dave'], include_routing_hints=True, amount_msat=amount_to_pay)
+            try:
+                async with timeout_after(0.5):
+                    result, log = await graph.workers['alice'].pay_invoice(pay_req, attempts=1)
+            except TaskTimeout:
+                # by now Dave hopefully received some HTLCs:
+                self.assertTrue(
+                    len(graph.channels[('dave', 'carol')].hm.htlcs(LOCAL)) > 0)
+                self.assertTrue(
+                    len(graph.channels[('dave', 'carol')].hm.htlcs(REMOTE)) > 0)
+            else:
+                self.fail(
+                    f"pay_invoice finished but was not supposed to. result={result}")
             await graph.workers['dave'].stop()
             # Dave is supposed to have failed the pending incomplete MPP HTLCs
-            self.assertEqual(0, len(hm.htlcs(LOCAL)))
-            self.assertEqual(0, len(hm.htlcs(REMOTE)))
+            self.assertEqual(
+                0, len(graph.channels[('dave', 'carol')].hm.htlcs(LOCAL)))
+            self.assertEqual(
+                0, len(graph.channels[('dave', 'carol')].hm.htlcs(REMOTE)))
             raise SuccessfulTest()
 
         async def f():
@@ -1259,10 +1328,8 @@ class TestPeer(TestCaseForTestnet):
                 for peer in peers:
                     await group.spawn(peer._message_loop())
                     await group.spawn(peer.htlc_switch())
-                for peer in peers:
-                    await peer.initialized
+                await asyncio.sleep(0.2)
                 await group.spawn(pay())
-                await group.spawn(stop())
 
         with self.assertRaises(SuccessfulTest):
             run(f())
@@ -1283,10 +1350,10 @@ class TestPeer(TestCaseForTestnet):
             alice_fee_range={'min_fee_satoshis': 1, 'max_fee_satoshis': 10},
             bob_fee_range={'min_fee_satoshis': 10, 'max_fee_satoshis': 300})
 
-    ## This test works but it is too slow (LN_P2P_NETWORK_TIMEOUT)
-    ## because tests do not use a proper LNWorker object
-    #@needs_test_with_all_chacha20_implementations
-    #def test_modern_shutdown_no_overlap(self):
+    # This test works but it is too slow (LN_P2P_NETWORK_TIMEOUT)
+    # because tests do not use a proper LNWorker object
+    # @needs_test_with_all_chacha20_implementations
+    # def test_modern_shutdown_no_overlap(self):
     #    self.assertRaises(Exception, lambda: asyncio.run(
     #        self._test_shutdown(
     #            alice_fee=1,
@@ -1297,11 +1364,13 @@ class TestPeer(TestCaseForTestnet):
 
     def _test_shutdown(self, alice_fee, bob_fee, alice_fee_range=None, bob_fee_range=None):
         alice_channel, bob_channel = create_test_channels()
-        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(alice_channel, bob_channel)
+        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(
+            alice_channel, bob_channel)
         w1.network.config.set_key('test_shutdown_fee', alice_fee)
         w2.network.config.set_key('test_shutdown_fee', bob_fee)
         if alice_fee_range is not None:
-            w1.network.config.set_key('test_shutdown_fee_range', alice_fee_range)
+            w1.network.config.set_key(
+                'test_shutdown_fee_range', alice_fee_range)
         else:
             w1.network.config.set_key('test_shutdown_legacy', True)
         if bob_fee_range is not None:
@@ -1310,6 +1379,7 @@ class TestPeer(TestCaseForTestnet):
             w2.network.config.set_key('test_shutdown_legacy', True)
         w2.enable_htlc_settle = False
         lnaddr, pay_req = self.prepare_invoice(w2)
+
         async def pay():
             await asyncio.wait_for(p1.initialized, 1)
             await asyncio.wait_for(p2.initialized, 1)
@@ -1325,10 +1395,13 @@ class TestPeer(TestCaseForTestnet):
             # alice closes
             await p1.close_channel(alice_channel.channel_id)
             gath.cancel()
+
         async def set_settle():
             await asyncio.sleep(0.1)
             w2.enable_htlc_settle = True
-        gath = asyncio.gather(pay(), set_settle(), p1._message_loop(), p2._message_loop(), p1.htlc_switch(), p2.htlc_switch())
+        gath = asyncio.gather(pay(), set_settle(), p1._message_loop(
+        ), p2._message_loop(), p1.htlc_switch(), p2.htlc_switch())
+
         async def f():
             await gath
         with self.assertRaises(concurrent.futures.CancelledError):
@@ -1337,13 +1410,16 @@ class TestPeer(TestCaseForTestnet):
     @needs_test_with_all_chacha20_implementations
     def test_warning(self):
         alice_channel, bob_channel = create_test_channels()
-        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(alice_channel, bob_channel)
+        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(
+            alice_channel, bob_channel)
 
         async def action():
             await asyncio.wait_for(p1.initialized, 1)
             await asyncio.wait_for(p2.initialized, 1)
             await p1.send_warning(alice_channel.channel_id, 'be warned!', close_connection=True)
-        gath = asyncio.gather(action(), p1._message_loop(), p2._message_loop(), p1.htlc_switch(), p2.htlc_switch())
+        gath = asyncio.gather(action(), p1._message_loop(
+        ), p2._message_loop(), p1.htlc_switch(), p2.htlc_switch())
+
         async def f():
             await gath
         with self.assertRaises(GracefulDisconnect):
@@ -1352,7 +1428,8 @@ class TestPeer(TestCaseForTestnet):
     @needs_test_with_all_chacha20_implementations
     def test_error(self):
         alice_channel, bob_channel = create_test_channels()
-        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(alice_channel, bob_channel)
+        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(
+            alice_channel, bob_channel)
 
         async def action():
             await asyncio.wait_for(p1.initialized, 1)
@@ -1360,7 +1437,9 @@ class TestPeer(TestCaseForTestnet):
             await p1.send_error(alice_channel.channel_id, 'some error happened!', force_close_channel=True)
             assert alice_channel.is_closed()
             gath.cancel()
-        gath = asyncio.gather(action(), p1._message_loop(), p2._message_loop(), p1.htlc_switch(), p2.htlc_switch())
+        gath = asyncio.gather(action(), p1._message_loop(
+        ), p2._message_loop(), p1.htlc_switch(), p2.htlc_switch())
+
         async def f():
             await gath
         with self.assertRaises(GracefulDisconnect):
@@ -1397,9 +1476,9 @@ class TestPeer(TestCaseForTestnet):
                 gath.cancel()
 
             async def main_loop(peer):
-                    async with peer.taskgroup as group:
-                        await group.spawn(peer._message_loop())
-                        await group.spawn(peer.htlc_switch())
+                async with peer.taskgroup as group:
+                    await group.spawn(peer._message_loop())
+                    await group.spawn(peer.htlc_switch())
 
             coros = [close(), main_loop(p1), main_loop(p2)]
             gath = asyncio.gather(*coros)
@@ -1442,7 +1521,8 @@ class TestPeer(TestCaseForTestnet):
         lnaddr, pay_req = self.prepare_invoice(w2)
 
         lnaddr = w1._check_invoice(pay_req)
-        route, amount_msat = run(w1.create_routes_from_invoice(lnaddr.get_amount_msat(), decoded_invoice=lnaddr))[0][0:2]
+        route, amount_msat = run(w1.create_routes_from_invoice(
+            lnaddr.get_amount_msat(), decoded_invoice=lnaddr))[0][0:2]
         assert amount_msat == lnaddr.get_amount_msat()
 
         run(w1.force_close_channel(alice_channel.channel_id))
@@ -1450,11 +1530,13 @@ class TestPeer(TestCaseForTestnet):
         assert q1.qsize() == 1
 
         with self.assertRaises(NoPathFound) as e:
-            run(w1.create_routes_from_invoice(lnaddr.get_amount_msat(), decoded_invoice=lnaddr))
+            run(w1.create_routes_from_invoice(
+                lnaddr.get_amount_msat(), decoded_invoice=lnaddr))
 
         peer = w1.peers[route[0].node_id]
         # AssertionError is ok since we shouldn't use old routes, and the
         # route finding should fail when channel is closed
+
         async def f():
             min_cltv_expiry = lnaddr.get_min_final_cltv_expiry()
             payment_hash = lnaddr.paymenthash
@@ -1468,7 +1550,6 @@ class TestPeer(TestCaseForTestnet):
                 payment_secret=payment_secret,
                 min_cltv_expiry=min_cltv_expiry,
                 trampoline_fee_level=0,
-                trampoline_route=None,
             )
             await asyncio.gather(pay, p1._message_loop(), p2._message_loop(), p1.htlc_switch(), p2.htlc_switch())
         with self.assertRaises(PaymentFailure):
@@ -1477,19 +1558,22 @@ class TestPeer(TestCaseForTestnet):
     @needs_test_with_all_chacha20_implementations
     def test_sending_weird_messages_that_should_be_ignored(self):
         alice_channel, bob_channel = create_test_channels()
-        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(alice_channel, bob_channel)
+        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(
+            alice_channel, bob_channel)
 
         async def send_weird_messages():
             await asyncio.wait_for(p1.initialized, 1)
             await asyncio.wait_for(p2.initialized, 1)
             # peer1 sends known message with trailing garbage
             # BOLT-01 says peer2 should ignore trailing garbage
-            raw_msg1 = encode_msg('ping', num_pong_bytes=4, byteslen=4) + bytes(range(55))
+            raw_msg1 = encode_msg('ping', num_pong_bytes=4,
+                                  byteslen=4) + bytes(range(55))
             p1.transport.send_bytes(raw_msg1)
             await asyncio.sleep(0.05)
             # peer1 sends unknown 'odd-type' message
             # BOLT-01 says peer2 should ignore whole message
-            raw_msg2 = (43333).to_bytes(length=2, byteorder="big") + bytes(range(55))
+            raw_msg2 = (43333).to_bytes(
+                length=2, byteorder="big") + bytes(range(55))
             p1.transport.send_bytes(raw_msg2)
             await asyncio.sleep(0.05)
             raise SuccessfulTest()
@@ -1499,8 +1583,7 @@ class TestPeer(TestCaseForTestnet):
                 for peer in [p1, p2]:
                     await group.spawn(peer._message_loop())
                     await group.spawn(peer.htlc_switch())
-                for peer in [p1, p2]:
-                    await peer.initialized
+                await asyncio.sleep(0.2)
                 await group.spawn(send_weird_messages())
 
         with self.assertRaises(SuccessfulTest):
@@ -1509,18 +1592,21 @@ class TestPeer(TestCaseForTestnet):
     @needs_test_with_all_chacha20_implementations
     def test_sending_weird_messages__unknown_even_type(self):
         alice_channel, bob_channel = create_test_channels()
-        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(alice_channel, bob_channel)
+        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(
+            alice_channel, bob_channel)
 
         async def send_weird_messages():
             await asyncio.wait_for(p1.initialized, 1)
             await asyncio.wait_for(p2.initialized, 1)
             # peer1 sends unknown 'even-type' message
             # BOLT-01 says peer2 should close the connection
-            raw_msg2 = (43334).to_bytes(length=2, byteorder="big") + bytes(range(55))
+            raw_msg2 = (43334).to_bytes(
+                length=2, byteorder="big") + bytes(range(55))
             p1.transport.send_bytes(raw_msg2)
             await asyncio.sleep(0.05)
 
         failing_task = None
+
         async def f():
             nonlocal failing_task
             async with OldTaskGroup() as group:
@@ -1528,18 +1614,19 @@ class TestPeer(TestCaseForTestnet):
                 await group.spawn(p1.htlc_switch())
                 failing_task = await group.spawn(p2._message_loop())
                 await group.spawn(p2.htlc_switch())
-                for peer in [p1, p2]:
-                    await peer.initialized
+                await asyncio.sleep(0.2)
                 await group.spawn(send_weird_messages())
 
         with self.assertRaises(lnmsg.UnknownMandatoryMsgType):
             run(f())
-        self.assertTrue(isinstance(failing_task.exception(), lnmsg.UnknownMandatoryMsgType))
+        self.assertTrue(isinstance(failing_task.exception(),
+                        lnmsg.UnknownMandatoryMsgType))
 
     @needs_test_with_all_chacha20_implementations
     def test_sending_weird_messages__known_msg_with_insufficient_length(self):
         alice_channel, bob_channel = create_test_channels()
-        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(alice_channel, bob_channel)
+        p1, p2, w1, w2, _q1, _q2 = self.prepare_peers(
+            alice_channel, bob_channel)
 
         async def send_weird_messages():
             await asyncio.wait_for(p1.initialized, 1)
@@ -1551,6 +1638,7 @@ class TestPeer(TestCaseForTestnet):
             await asyncio.sleep(0.05)
 
         failing_task = None
+
         async def f():
             nonlocal failing_task
             async with OldTaskGroup() as group:
@@ -1558,13 +1646,13 @@ class TestPeer(TestCaseForTestnet):
                 await group.spawn(p1.htlc_switch())
                 failing_task = await group.spawn(p2._message_loop())
                 await group.spawn(p2.htlc_switch())
-                for peer in [p1, p2]:
-                    await peer.initialized
+                await asyncio.sleep(0.2)
                 await group.spawn(send_weird_messages())
 
         with self.assertRaises(lnmsg.UnexpectedEndOfStream):
             run(f())
-        self.assertTrue(isinstance(failing_task.exception(), lnmsg.UnexpectedEndOfStream))
+        self.assertTrue(isinstance(failing_task.exception(),
+                        lnmsg.UnexpectedEndOfStream))
 
 
 def run(coro):

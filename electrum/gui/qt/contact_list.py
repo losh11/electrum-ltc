@@ -76,25 +76,34 @@ class ContactList(MyTreeView):
             sel_key = self.model().itemFromIndex(s_idx).data(self.ROLE_CONTACT_KEY)
             selected_keys.append(sel_key)
         if not selected_keys or not idx.isValid():
-            menu.addAction(_("New contact"), lambda: self.parent.new_contact_dialog())
-            menu.addAction(_("Import file"), lambda: self.parent.import_contacts())
-            menu.addAction(_("Export file"), lambda: self.parent.export_contacts())
+            menu.addAction(_("New contact"),
+                           lambda: self.parent.new_contact_dialog())
+            menu.addAction(_("Import file"),
+                           lambda: self.parent.import_contacts())
+            menu.addAction(_("Export file"),
+                           lambda: self.parent.export_contacts())
         else:
             column_title = self.model().horizontalHeaderItem(column).text()
             column_data = '\n'.join(self.model().itemFromIndex(s_idx).text()
                                     for s_idx in self.selected_in_column(column))
-            menu.addAction(_("Copy {}").format(column_title), lambda: self.place_text_on_clipboard(column_data, title=column_title))
+            menu.addAction(_("Copy {}").format(
+                column_title), lambda: self.place_text_on_clipboard(column_data, title=column_title))
             if column in self.editable_columns:
                 item = self.model().itemFromIndex(idx)
                 if item.isEditable():
                     # would not be editable if openalias
                     persistent = QPersistentModelIndex(idx)
-                    menu.addAction(_("Edit {}").format(column_title), lambda p=persistent: self.edit(QModelIndex(p)))
-            menu.addAction(_("Pay to"), lambda: self.parent.payto_contacts(selected_keys))
-            menu.addAction(_("Delete"), lambda: self.parent.delete_contacts(selected_keys))
-            URLs = [block_explorer_URL(self.config, 'addr', key) for key in filter(is_address, selected_keys)]
+                    menu.addAction(_("Edit {}").format(
+                        column_title), lambda p=persistent: self.edit(QModelIndex(p)))
+            menu.addAction(
+                _("Pay to"), lambda: self.parent.payto_contacts(selected_keys))
+            menu.addAction(
+                _("Delete"), lambda: self.parent.delete_contacts(selected_keys))
+            URLs = [block_explorer_URL(self.config, 'addr', key)
+                    for key in filter(is_address, selected_keys)]
             if URLs:
-                menu.addAction(_("View on block explorer"), lambda: [webopen(u) for u in URLs])
+                menu.addAction(_("View on block explorer"),
+                               lambda: [webopen(u) for u in URLs])
 
         run_hook('create_contact_menu', menu, selected_keys)
         menu.exec_(self.viewport().mapToGlobal(position))
@@ -102,7 +111,8 @@ class ContactList(MyTreeView):
     def update(self):
         if self.maybe_defer_update():
             return
-        current_key = self.get_role_data_for_current_item(col=self.Columns.NAME, role=self.ROLE_CONTACT_KEY)
+        current_key = self.get_role_data_for_current_item(
+            col=self.Columns.NAME, role=self.ROLE_CONTACT_KEY)
         self.model().clear()
         self.update_headers(self.__class__.headers)
         set_current = None

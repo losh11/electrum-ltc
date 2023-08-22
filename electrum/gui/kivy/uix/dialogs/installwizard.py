@@ -570,7 +570,6 @@ Builder.load_string('''
 ''')
 
 
-
 class WizardDialog(EventsDialog):
     ''' Abstract dialog to be used as the base for all Create Account Dialogs
     '''
@@ -597,9 +596,9 @@ class WizardDialog(EventsDialog):
         if self.app.ui_mode[0] == 'p':
             self.size = Window.size
         else:
-            #tablet
+            # tablet
             if self.app.orientation[0] == 'p':
-                #portrait
+                # portrait
                 self.size = Window.size[0]/1.67, Window.size[1]/1.4
             else:
                 self.size = Window.size[0]/2.5, Window.size[1]
@@ -682,8 +681,10 @@ class WizardKnownOTPDialog(WizardOTPDialogBase):
 
     def __init__(self, wizard, **kwargs):
         WizardOTPDialogBase.__init__(self, wizard, **kwargs)
-        self.message = _("This wallet is already registered with TrustedCoin. To finalize wallet creation, please enter your Google Authenticator Code.")
-        self.message2 =_("If you have lost your Google Authenticator account, you can request a new secret. You will need to retype your seed.")
+        self.message = _(
+            "This wallet is already registered with TrustedCoin. To finalize wallet creation, please enter your Google Authenticator Code.")
+        self.message2 = _(
+            "If you have lost your Google Authenticator account, you can request a new secret. You will need to retype your seed.")
         self.request_new = False
 
     def get_params(self, button):
@@ -704,13 +705,14 @@ class WizardNewOTPDialog(WizardOTPDialogBase):
     def __init__(self, wizard, **kwargs):
         WizardOTPDialogBase.__init__(self, wizard, **kwargs)
         otp_secret = kwargs['otp_secret']
-        uri = "otpauth://totp/%s?secret=%s"%('trustedcoin.com', otp_secret)
-        self.message = "Please scan the following QR code in Google Authenticator. You may also use the secret key: %s"%otp_secret
+        uri = "otpauth://totp/%s?secret=%s" % ('trustedcoin.com', otp_secret)
+        self.message = "Please scan the following QR code in Google Authenticator. You may also use the secret key: %s" % otp_secret
         self.message2 = _('Then, enter your Google Authenticator code:')
         self.ids.qr.set_data(uri)
 
     def get_params(self, button):
         return (self.get_otp(), False)
+
 
 class WizardTOSDialog(WizardDialog):
 
@@ -719,6 +721,7 @@ class WizardTOSDialog(WizardDialog):
         self.ids.next.text = 'Accept'
         self.ids.next.disabled = False
         self.message = kwargs['tos']
+
 
 class WizardEmailDialog(WizardDialog):
 
@@ -733,6 +736,7 @@ class WizardEmailDialog(WizardDialog):
         next = self.ids.next
         if not next.disabled:
             next.dispatch('on_release')
+
 
 class WizardConfirmDialog(WizardDialog):
 
@@ -797,10 +801,12 @@ class LineDialog(WizardDialog):
     def get_params(self, b):
         return (self.get_text(),)
 
+
 class CLButton(ToggleButton):
     def on_release(self):
         self.root.script_type = self.script_type
         self.root.set_text(self.value)
+
 
 class ChoiceLineDialog(WizardChoiceDialog):
     title = StringProperty('')
@@ -818,7 +824,8 @@ class ChoiceLineDialog(WizardChoiceDialog):
         layout = self.ids.choices
         layout.bind(minimum_height=layout.setter('height'))
         for idx, (script_type, title, text) in enumerate(self.choices):
-            b = CLButton(text=title, height='30dp', group=self.title, allow_no_selection=False)
+            b = CLButton(text=title, height='30dp',
+                         group=self.title, allow_no_selection=False)
             b.script_type = script_type
             b.root = self
             b.value = text
@@ -831,6 +838,7 @@ class ChoiceLineDialog(WizardChoiceDialog):
 
     def get_params(self, b):
         return (self.ids.text_input.text, self.script_type)
+
 
 class ShowSeedDialog(WizardDialog):
     seed_text = StringProperty('')
@@ -853,9 +861,11 @@ class ShowSeedDialog(WizardDialog):
 
     def options_dialog(self):
         from .seed_options import SeedOptionsDialog
+
         def callback(ext, _):
             self.is_ext = ext
-        d = SeedOptionsDialog(self.opt_ext, False, self.is_ext, False, callback)
+        d = SeedOptionsDialog(self.opt_ext, False,
+                              self.is_ext, False, callback)
         d.open()
 
     def get_params(self, b):
@@ -864,6 +874,7 @@ class ShowSeedDialog(WizardDialog):
 
 class WordButton(Button):
     pass
+
 
 class WizardButton(Button):
     pass
@@ -878,7 +889,8 @@ class RestoreSeedDialog(WizardDialog):
         from electrum.old_mnemonic import wordlist as old_wordlist
         self.words = set(Mnemonic('en').wordlist).union(set(old_wordlist))
         self.ids.text_input_seed.text = ''
-        self.message = _('Please type your seed phrase using the virtual keyboard.')
+        self.message = _(
+            'Please type your seed phrase using the virtual keyboard.')
         self.title = _('Enter Seed')
         self.opt_ext = kwargs['opt_ext']
         self.opt_bip39 = kwargs['opt_bip39']
@@ -887,11 +899,13 @@ class RestoreSeedDialog(WizardDialog):
 
     def options_dialog(self):
         from .seed_options import SeedOptionsDialog
+
         def callback(ext, bip39):
             self.is_ext = ext
             self.is_bip39 = bip39
             self.update_next_button()
-        d = SeedOptionsDialog(self.opt_ext, self.opt_bip39, self.is_ext, self.is_bip39, callback)
+        d = SeedOptionsDialog(self.opt_ext, self.opt_bip39,
+                              self.is_ext, self.is_bip39, callback)
         d.open()
 
     def get_suggestions(self, prefix):
@@ -936,13 +950,15 @@ class RestoreSeedDialog(WizardDialog):
         i = len(last_word)
         p = set()
         for x in suggestions:
-            if len(x)>i: p.add(x[i])
+            if len(x) > i:
+                p.add(x[i])
 
         for line in [self.ids.line1, self.ids.line2, self.ids.line3]:
             for c in line.children:
                 if isinstance(c, Button):
                     if c.text in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
-                        c.disabled = (c.text.lower() not in p) and bool(last_word)
+                        c.disabled = (
+                            c.text.lower() not in p) and bool(last_word)
                     elif c.text == ' ':
                         c.disabled = not enable_space
 
@@ -971,7 +987,7 @@ class RestoreSeedDialog(WizardDialog):
         if value:
             tis = self.ids.text_input_seed
             tis.focus = True
-            #tis._keyboard.bind(on_key_down=self.on_key_down)
+            # tis._keyboard.bind(on_key_down=self.on_key_down)
             self._back = _back = partial(self.ids.back.dispatch,
                                          'on_release')
 
@@ -981,7 +997,7 @@ class RestoreSeedDialog(WizardDialog):
             return True
 
     def on_enter(self):
-        #self._remove_keyboard()
+        # self._remove_keyboard()
         # press next
         next = self.ids.next
         if not next.disabled:
@@ -1007,6 +1023,7 @@ class ConfirmSeedDialog(RestoreSeedDialog):
 
     def get_params(self, b):
         return (self.get_text(),)
+
     def options_dialog(self):
         pass
 
@@ -1034,6 +1051,7 @@ class AddXpubDialog(WizardDialog):
 
     def __init__(self, wizard, **kwargs):
         WizardDialog.__init__(self, wizard, **kwargs)
+
         def is_valid(x):
             try:
                 return kwargs['is_valid'](x)
@@ -1069,8 +1087,6 @@ class AddXpubDialog(WizardDialog):
         self.ids.text_input.text = ''
 
 
-
-
 class InstallWizard(BaseWizard, Widget):
 
     def __init__(self, *args, **kwargs):
@@ -1085,10 +1101,13 @@ class InstallWizard(BaseWizard, Widget):
             storage, db = self.create_storage(self.path)
             self.app.on_wizard_success(storage, db, password)
         else:
-            try: os.unlink(self.path)
-            except FileNotFoundError: pass
+            try:
+                os.unlink(self.path)
+            except FileNotFoundError:
+                pass
             self.reset_stack()
-            self.confirm_dialog(message=_('Wallet creation failed'), run_next=lambda x: self.app.on_wizard_aborted())
+            self.confirm_dialog(message=_('Wallet creation failed'),
+                                run_next=lambda x: self.app.on_wizard_aborted())
 
     def choice_dialog(self, **kwargs):
         choices = kwargs['choices']
@@ -1098,14 +1117,19 @@ class InstallWizard(BaseWizard, Widget):
             f = kwargs['run_next']
             f(choices[0][0])
 
-    def multisig_dialog(self, **kwargs): WizardMultisigDialog(self, **kwargs).open()
+    def multisig_dialog(
+        self, **kwargs): WizardMultisigDialog(self, **kwargs).open()
+
     def show_seed_dialog(self, **kwargs): ShowSeedDialog(self, **kwargs).open()
     def line_dialog(self, **kwargs): LineDialog(self, **kwargs).open()
-    def derivation_and_script_type_gui_specific_dialog(self, **kwargs): ChoiceLineDialog(self, **kwargs).open()
+
+    def derivation_and_script_type_gui_specific_dialog(
+        self, **kwargs): ChoiceLineDialog(self, **kwargs).open()
 
     def confirm_seed_dialog(self, **kwargs):
         kwargs['title'] = _('Confirm Seed')
-        kwargs['message'] = _('Please retype your seed phrase, to confirm that you properly saved it')
+        kwargs['message'] = _(
+            'Please retype your seed phrase, to confirm that you properly saved it')
         kwargs['opt_bip39'] = self.opt_bip39
         kwargs['opt_ext'] = self.opt_ext
         ConfirmSeedDialog(self, **kwargs).open()
@@ -1131,12 +1155,14 @@ class InstallWizard(BaseWizard, Widget):
             WizardKnownOTPDialog(self, **kwargs).open()
 
     def add_xpub_dialog(self, **kwargs):
-        kwargs['message'] += ' ' + _('Use the camera button to scan a QR code.')
+        kwargs['message'] += ' ' + \
+            _('Use the camera button to scan a QR code.')
         AddXpubDialog(self, **kwargs).open()
 
     def add_cosigner_dialog(self, **kwargs):
-        kwargs['title'] = _("Add Cosigner") + " %d"%kwargs['index']
-        kwargs['message'] = _('Please paste your cosigners master public key, or scan it using the camera button.')
+        kwargs['title'] = _("Add Cosigner") + " %d" % kwargs['index']
+        kwargs['message'] = _(
+            'Please paste your cosigners master public key, or scan it using the camera button.')
         AddXpubDialog(self, **kwargs).open()
 
     def show_xpub_dialog(self, **kwargs): ShowXpubDialog(self, **kwargs).open()
@@ -1150,15 +1176,17 @@ class InstallWizard(BaseWizard, Widget):
         if self.app.password is not None:
             run_next(self.app.password, True)
             return
+
         def on_success(old_pw, pw):
             assert old_pw is None
             run_next(pw, True)
+
         def on_failure():
             self.show_error(_('Password mismatch'))
             self.request_password(run_next)
         popup = PasswordDialog(
             self.app,
-            check_password=lambda x:True,
+            check_password=lambda x: True,
             on_success=on_success,
             on_failure=on_failure,
             is_change=True,

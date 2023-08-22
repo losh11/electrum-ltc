@@ -2,7 +2,9 @@
 # Coldcard Electrum plugin main code.
 #
 #
-import os, time, io
+import os
+import time
+import io
 import traceback
 from typing import TYPE_CHECKING, Optional
 import struct
@@ -30,12 +32,11 @@ try:
     from ckcc.protocol import CCProtocolPacker, CCProtocolUnpacker
     from ckcc.protocol import CCProtoError, CCUserRefused, CCBusyError
     from ckcc.constants import (MAX_MSG_LEN, MAX_BLK_LEN, MSG_SIGNING_MAX_LENGTH, MAX_TXN_LEN,
-        AF_CLASSIC, AF_P2SH, AF_P2WPKH, AF_P2WSH, AF_P2WPKH_P2SH, AF_P2WSH_P2SH)
+                                AF_CLASSIC, AF_P2SH, AF_P2WPKH, AF_P2WSH, AF_P2WPKH_P2SH, AF_P2WSH_P2SH)
 
     from ckcc.client import ColdcardDevice, COINKITE_VID, CKCC_PID, CKCC_SIMULATOR_PATH
 
     requirements_ok = True
-
 
     class ElectrumColdcardDevice(ColdcardDevice):
         # avoid use of pycoin for MiTM message signature test
@@ -51,7 +52,7 @@ except ImportError as e:
     requirements_ok = False
 
     COINKITE_VID = 0xd13e
-    CKCC_PID     = 0xcc10
+    CKCC_PID = 0xcc10
 
 CKCC_SIMULATED_PID = CKCC_PID ^ 0x55aa
 
@@ -80,7 +81,7 @@ class CKCCClient(HardwareClientBase):
 
     def __repr__(self):
         return '<CKCCClient: xfp=%s label=%r>' % (xfp2str(self.dev.master_fingerprint),
-                                                        self.label())
+                                                  self.label())
 
     @runs_in_hwd_thread
     def verify_connection(self, expected_xfp: int, expected_xpub=None):
@@ -167,7 +168,8 @@ class CKCCClient(HardwareClientBase):
     def get_xpub(self, bip32_path, xtype):
         assert xtype in ColdcardPlugin.SUPPORTED_XTYPES
         _logger.info('Derive xtype = %r' % xtype)
-        xpub = self.dev.send_recv(CCProtocolPacker.get_xpub(bip32_path), timeout=5000)
+        xpub = self.dev.send_recv(
+            CCProtocolPacker.get_xpub(bip32_path), timeout=5000)
         # TODO handle timeout?
         # change type of xpub to the requested type
         try:
@@ -208,7 +210,8 @@ class CKCCClient(HardwareClientBase):
     @runs_in_hwd_thread
     def sign_message_start(self, path, msg):
         # this starts the UX experience.
-        self.dev.send_recv(CCProtocolPacker.sign_message(msg, path), timeout=None)
+        self.dev.send_recv(
+            CCProtocolPacker.sign_message(msg, path), timeout=None)
 
     @runs_in_hwd_thread
     def sign_message_poll(self):
@@ -226,7 +229,7 @@ class CKCCClient(HardwareClientBase):
         dlen, chk = self.dev.upload_file(raw_psbt)
 
         resp = self.dev.send_recv(CCProtocolPacker.sign_transaction(dlen, chk, finalize=finalize),
-                                    timeout=None)
+                                  timeout=None)
 
         if resp is not None:
             raise ValueError(resp)
@@ -240,7 +243,6 @@ class CKCCClient(HardwareClientBase):
     def download_file(self, length, checksum, file_number=1):
         # get a file
         return self.dev.download_file(length, checksum, file_number=file_number)
-
 
 
 class Coldcard_KeyStore(Hardware_KeyStore):
@@ -273,7 +275,8 @@ class Coldcard_KeyStore(Hardware_KeyStore):
         # called when user tries to do something like view address, sign somthing.
         # - not called during probing/setup
         # - will fail if indicated device can't produce the xpub (at derivation) expected
-        client = super().get_client(*args, **kwargs)  # type: Optional[CKCCClient]
+        # type: Optional[CKCCClient]
+        client = super().get_client(*args, **kwargs)
         if client:
             xfp_int = self.get_xfp_int()
             client.verify_connection(xfp_int, self.ckcc_xpub)
@@ -299,7 +302,8 @@ class Coldcard_KeyStore(Hardware_KeyStore):
         return wrapper
 
     def decrypt_message(self, pubkey, message, password):
-        raise UserFacingException(_('Encryption and decryption are currently not supported for {}').format(self.device))
+        raise UserFacingException(
+            _('Encryption and decryption are currently not supported for {}').format(self.device))
 
     @wrap_busy
     def sign_message(self, sequence, message, password, *, script_type=None):
@@ -312,14 +316,15 @@ class Coldcard_KeyStore(Hardware_KeyStore):
             # there are other restrictions on message content,
             # but let the device enforce and report those
             self.handler.show_error('Only short (%d max) ASCII messages can be signed.'
-                                            % MSG_SIGNING_MAX_LENGTH)
+                                    % MSG_SIGNING_MAX_LENGTH)
             return b''
 
         path = self.get_derivation_prefix() + ("/%d/%d" % sequence)
         try:
             cl = self.get_client()
             try:
-                self.handler.show_message("Signing message (using %s)..." % path)
+                self.handler.show_message(
+                    "Signing message (using %s)..." % path)
 
                 cl.sign_message_start(path, msg)
 
@@ -418,7 +423,7 @@ class Coldcard_KeyStore(Hardware_KeyStore):
     @wrap_busy
     def show_address(self, sequence, txin_type):
         client = self.get_client()
-        address_path = self.get_derivation_prefix()[2:] + "/%d/%d"%sequence
+        address_path = self.get_derivation_prefix()[2:] + "/%d/%d" % sequence
         addr_fmt = self._encode_txin_type(txin_type)
         try:
             try:
@@ -442,7 +447,8 @@ class Coldcard_KeyStore(Hardware_KeyStore):
         try:
             try:
                 self.handler.show_message(_("Showing address ..."))
-                dev_addr = client.show_p2sh_address(M, xfp_paths, script, addr_fmt=addr_fmt)
+                dev_addr = client.show_p2sh_address(
+                    M, xfp_paths, script, addr_fmt=addr_fmt)
                 # we could double check address here
             finally:
                 self.handler.finished()
@@ -467,7 +473,8 @@ class ColdcardPlugin(HW_PluginBase):
         (COINKITE_VID, CKCC_SIMULATED_PID)
     ]
 
-    SUPPORTED_XTYPES = ('standard', 'p2wpkh-p2sh', 'p2wpkh', 'p2wsh-p2sh', 'p2wsh')
+    SUPPORTED_XTYPES = ('standard', 'p2wpkh-p2sh',
+                        'p2wpkh', 'p2wsh-p2sh', 'p2wsh')
 
     def __init__(self, parent, config, name):
         HW_PluginBase.__init__(self, parent, config, name)
@@ -520,15 +527,18 @@ class ColdcardPlugin(HW_PluginBase):
 
     def setup_device(self, device_info, wizard, purpose):
         device_id = device_info.device.id_
-        client = self.scan_and_create_client_for_device(device_id=device_id, wizard=wizard)
+        client = self.scan_and_create_client_for_device(
+            device_id=device_id, wizard=wizard)
         return client
 
     def get_xpub(self, device_id, derivation, xtype, wizard):
         # this seems to be part of the pairing process only, not during normal ops?
         # base_wizard:on_hw_derivation
         if xtype not in self.SUPPORTED_XTYPES:
-            raise ScriptTypeNotSupported(_('This type of script is not supported with {}.').format(self.device))
-        client = self.scan_and_create_client_for_device(device_id=device_id, wizard=wizard)
+            raise ScriptTypeNotSupported(
+                _('This type of script is not supported with {}.').format(self.device))
+        client = self.scan_and_create_client_for_device(
+            device_id=device_id, wizard=wizard)
         client.ping_check()
 
         xpub = client.get_xpub(derivation, xtype)
@@ -559,8 +569,10 @@ class ColdcardPlugin(HW_PluginBase):
         print(f'Format: {wallet.txin_type.upper()}', file=fp)
 
         xpubs = []
-        for xpub, ks in zip(wallet.get_master_public_keys(), wallet.get_keystores()):  # type: str, KeyStoreWithMPK
-            fp_bytes, der_full = ks.get_fp_and_derivation_to_be_used_in_partial_tx(der_suffix=[], only_der_suffix=False)
+        # type: str, KeyStoreWithMPK
+        for xpub, ks in zip(wallet.get_master_public_keys(), wallet.get_keystores()):
+            fp_bytes, der_full = ks.get_fp_and_derivation_to_be_used_in_partial_tx(
+                der_suffix=[], only_der_suffix=False)
             fp_hex = fp_bytes.hex().upper()
             der_prefix_str = bip32.convert_bip32_intpath_to_strpath(der_full)
             xpubs.append((fp_hex, xpub, der_prefix_str))
@@ -589,7 +601,8 @@ class ColdcardPlugin(HW_PluginBase):
             sequence = wallet.get_address_index(address)
             keystore.show_address(sequence, txin_type)
         elif type(wallet) is Multisig_Wallet:
-            assert isinstance(wallet, Multisig_Wallet)  # only here for type-hints in IDE
+            # only here for type-hints in IDE
+            assert isinstance(wallet, Multisig_Wallet)
             # More involved for P2SH/P2WSH addresses: need M, and all public keys, and their
             # derivation paths. Must construct script, and track fingerprints+paths for
             # all those keys
@@ -600,7 +613,8 @@ class ColdcardPlugin(HW_PluginBase):
             for pubkey_hex in pubkey_hexes:
                 pubkey = bytes.fromhex(pubkey_hex)
                 ks, der_suffix = pubkey_deriv_info[pubkey]
-                fp_bytes, der_full = ks.get_fp_and_derivation_to_be_used_in_partial_tx(der_suffix, only_der_suffix=False)
+                fp_bytes, der_full = ks.get_fp_and_derivation_to_be_used_in_partial_tx(
+                    der_suffix, only_der_suffix=False)
                 xfp_int = xfp_int_from_xfp_bytes(fp_bytes)
                 xfp_paths.append([xfp_int] + list(der_full))
 
@@ -609,7 +623,8 @@ class ColdcardPlugin(HW_PluginBase):
             keystore.show_p2sh_address(wallet.m, script, xfp_paths, txin_type)
 
         else:
-            keystore.handler.show_error(_('This function is only available for standard wallets when using {}.').format(self.device))
+            keystore.handler.show_error(
+                _('This function is only available for standard wallets when using {}.').format(self.device))
             return
 
 

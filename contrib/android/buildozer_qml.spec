@@ -1,10 +1,10 @@
 [app]
 
 # (str) Title of your application
-title = Electrum
+title = Electrum-LTC
 
 # (str) Package name
-package.name = Electrum
+package.name = electrum
 
 # (str) Package domain (needed for android/ios packaging)
 package.domain = org.electrum
@@ -13,23 +13,18 @@ package.domain = org.electrum
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,qml,qmltypes,ttf,txt,gif,pem,mo,json,csv,so
+source.include_exts = py,png,jpg,qml,qmltypes,ttf,txt,gif,pem,mo,vs,fs,json,csv,so
 
 # (list) Source files to exclude (let empty to not exclude anything)
 source.exclude_exts = spec
 
 # (list) List of directory to exclude (let empty to not exclude anything)
-source.exclude_dirs = bin, build, dist, contrib, env,
+source.exclude_dirs = bin, build, dist, contrib,
     electrum/tests,
-    electrum/www,
     electrum/gui/qt,
     electrum/gui/kivy,
     packages/qdarkstyle,
-    packages/qtpy,
-    packages/bin,
-    packages/share,
-    packages/pkg_resources,
-    packages/setuptools
+    packages/qtpy
 
 # (list) List of exclusions using pattern matching
 source.exclude_patterns = Makefile,setup*,
@@ -56,9 +51,7 @@ requirements =
     libsecp256k1,
     cryptography,
     pyqt5sip,
-    pyqt5,
-    pillow,
-    libzbar
+    pyqt5
 
 # (str) Presplash of the application
 #presplash.filename = %(source.dir)s/gui/kivy/theming/splash.png
@@ -83,12 +76,9 @@ fullscreen = False
 # (list) Permissions
 android.permissions = INTERNET, CAMERA, WRITE_EXTERNAL_STORAGE
 
-# (int) Android API to use  (compileSdkVersion)
+# (int) Android API to use  (targetSdkVersion AND compileSdkVersion)
 # note: when changing, Dockerfile also needs to be changed to install corresponding build tools
 android.api = 30
-
-# (int) Android targetSdkVersion
-android.target_sdk_version = 31
 
 # (int) Minimum API required. You will need to set the android.ndk_api to be as low as this value.
 android.minapi = 21
@@ -133,7 +123,7 @@ android.accept_sdk_license = True
 #android.add_jars = foo.jar,bar.jar,path/to/more/*.jar
 #android.add_jars = lib/android/zbar.jar
 
-android.add_jars = .buildozer/android/platform/*/build/libs_collections/Electrum/jar/*.jar
+android.add_jars = .buildozer/android/platform/*/build/libs_collections/electrum/jar/*.jar
 
 
 # (list) List of Java files to add to the android project (can be java or a
@@ -171,10 +161,6 @@ android.manifest.launch_mode = singleTask
 # (str) The Android arch to build for, choices: armeabi-v7a, arm64-v8a, x86, x86_64
 # note: can be overwritten by APP_ANDROID_ARCH env var
 #android.arch = armeabi-v7a
-
-# (int) overrides automatic versionCode computation (used in build.gradle)
-# this is not the same as app version and should only be edited if you know what you're doing
-# android.numeric_version = 1
 
 # (list) Android application meta-data to set (key=value format)
 #android.meta_data =

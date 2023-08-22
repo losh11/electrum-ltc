@@ -21,9 +21,9 @@ from ..hw_wallet.plugin import OutdatedHwFirmwareException
 
 _logger = get_logger(__name__)
 
-#import logging
-#LOGGING = logging.INFO
-#if LOGGING:
+# import logging
+# LOGGING = logging.INFO
+# if LOGGING:
 #    logger = logging.getLogger('jade')
 #    logger.setLevel(LOGGING)
 #    device_logger = logging.getLogger('jade-device')
@@ -37,14 +37,19 @@ except ImportError as e:
     _logger.exception('error importing Jade plugin deps')
 
 # Ignore -beta and -rc etc labels
+
+
 def _versiontuple(v):
     return tuple(map(int, (v.split('-')[0].split('.'))))
+
 
 def _is_multisig(wallet):
     return type(wallet) is Multisig_Wallet
 
 # Ensure a multisig wallet is registered on Jade hw.
 # Derives and returns the deterministic name for that multisig registration
+
+
 def _register_multisig_wallet(wallet, keystore, address):
     wallet_fingerprint_hash = sha256(wallet.get_fingerprint())
     multisig_name = 'ele' + wallet_fingerprint_hash.hex()[:12]
@@ -55,7 +60,8 @@ def _register_multisig_wallet(wallet, keystore, address):
     for kstore in wallet.get_keystores():
         fingerprint = kstore.get_root_fingerprint()
         bip32_path_prefix = kstore.get_derivation_prefix()
-        derivation_path = bip32.convert_bip32_path_to_list_of_uint32(bip32_path_prefix)
+        derivation_path = bip32.convert_bip32_path_to_list_of_uint32(
+            bip32_path_prefix)
 
         # Jade only understands standard xtypes, so convert here
         node = bip32.BIP32Node.from_xkey(kstore.xpub)
@@ -69,12 +75,15 @@ def _register_multisig_wallet(wallet, keystore, address):
     # Check multisig is registered - re-registering is a no-op
     # NOTE: electrum multisigs appear to always be sorted-multisig
     txin_type = wallet.get_txin_type(address)
-    keystore.register_multisig(multisig_name, txin_type, True, wallet.m, signers)
+    keystore.register_multisig(
+        multisig_name, txin_type, True, wallet.m, signers)
 
     # Return the name used to register the wallet
     return multisig_name
 
 # Helper to adapt Jade's http call/data to Network.send_http_on_proxy()
+
+
 def _http_request(params):
     # Use the first non-onion url
     url = [url for url in params['urls'] if not url.endswith('.onion')][0]
@@ -82,6 +91,7 @@ def _http_request(params):
     json_payload = params.get('data')
     json_response = Network.send_http_on_proxy(method, url, json=json_payload)
     return {'body': json.loads(json_response)}
+
 
 class Jade_Client(HardwareClientBase):
 
@@ -129,7 +139,8 @@ class Jade_Client(HardwareClientBase):
         # NOTE: uses provided http/networking which respects any user proxy
         authenticated = False
         while not authenticated:
-            authenticated = self.jade.auth_user(self._network(), http_request_fn=_http_request)
+            authenticated = self.jade.auth_user(
+                self._network(), http_request_fn=_http_request)
 
     def is_pairable(self):
         return True
@@ -203,10 +214,12 @@ class Jade_Client(HardwareClientBase):
         # Map change script type
         for output in change:
             if output and output.get('variant') is not None:
-                output['variant'] = self._convertAddrType(output['variant'], False)
+                output['variant'] = self._convertAddrType(
+                    output['variant'], False)
 
         # Pass to Jade to generate signatures
-        sig_data = self.jade.sign_tx(self._network(), txn_bytes, inputs, change, use_ae_signatures=True)
+        sig_data = self.jade.sign_tx(
+            self._network(), txn_bytes, inputs, change, use_ae_signatures=True)
 
         # Extract signatures from returned data (sig[0] is the AE signer-commitment)
         return [sig[1] for sig in sig_data]
@@ -217,7 +230,8 @@ class Jade_Client(HardwareClientBase):
         path = bip32.convert_bip32_path_to_list_of_uint32(bip32_path_prefix)
         path.extend(sequence)
         script_variant = self._convertAddrType(txin_type, multisig=False)
-        address = self.jade.get_receive_address(self._network(), path, variant=script_variant)
+        address = self.jade.get_receive_address(
+            self._network(), path, variant=script_variant)
         return address
 
     @runs_in_hwd_thread
@@ -231,6 +245,7 @@ class Jade_Client(HardwareClientBase):
         self.authenticate()
         return self.jade.get_receive_address(self._network(), paths, multisig_name=multisig_name)
 
+
 class Jade_KeyStore(Hardware_KeyStore):
     hw_type = 'jade'
     device = 'Jade'
@@ -238,11 +253,13 @@ class Jade_KeyStore(Hardware_KeyStore):
     plugin: 'JadePlugin'
 
     def decrypt_message(self, sequence, message, password):
-        raise UserFacingException(_('Encryption and decryption are not implemented by {}').format(self.device))
+        raise UserFacingException(
+            _('Encryption and decryption are not implemented by {}').format(self.device))
 
     @runs_in_hwd_thread
     def sign_message(self, sequence, message, password, *, script_type=None):
-        self.handler.show_message(_("Please confirm signing the message with your Jade device..."))
+        self.handler.show_message(
+            _("Please confirm signing the message with your Jade device..."))
         try:
             client = self.get_client()
             bip32_path_prefix = self.get_derivation_prefix()
@@ -264,11 +281,14 @@ class Jade_KeyStore(Hardware_KeyStore):
             jade_inputs = []
             for txin in tx.inputs():
                 pubkey, path = self.find_my_pubkey_in_txinout(txin)
-                witness_input = txin.script_type in ['p2wpkh-p2sh', 'p2wsh-p2sh', 'p2wpkh', 'p2wsh']
+                witness_input = txin.script_type in [
+                    'p2wpkh-p2sh', 'p2wsh-p2sh', 'p2wpkh', 'p2wsh']
                 redeem_script = Transaction.get_preimage_script(txin)
-                redeem_script = bytes.fromhex(redeem_script) if redeem_script is not None else None
+                redeem_script = bytes.fromhex(
+                    redeem_script) if redeem_script is not None else None
                 input_tx = txin.utxo
-                input_tx = bytes.fromhex(input_tx.serialize()) if input_tx is not None else None
+                input_tx = bytes.fromhex(
+                    input_tx.serialize()) if input_tx is not None else None
 
                 # Build the input and add to the list - include some host entropy for AE sigs (although we won't verify)
                 jade_inputs.append({'is_witness': witness_input,
@@ -282,7 +302,8 @@ class Jade_KeyStore(Hardware_KeyStore):
                 if txout.is_mine and txout.is_change:
                     if is_multisig:
                         # Multisig - wallet details must be registered on Jade hw
-                        multisig_name = _register_multisig_wallet(wallet, self, txout.address)
+                        multisig_name = _register_multisig_wallet(
+                            wallet, self, txout.address)
 
                         # Jade only needs the path suffix(es) and the multisig registration
                         # name to generate the address, as the fixed derivation part is
@@ -290,18 +311,21 @@ class Jade_KeyStore(Hardware_KeyStore):
                         # NOTE: all cosigners have same path suffix
                         path_suffix = wallet.get_address_index(txout.address)
                         paths = [path_suffix] * wallet.n
-                        change[index] = {'multisig_name': multisig_name, 'paths': paths}
+                        change[index] = {
+                            'multisig_name': multisig_name, 'paths': paths}
                     else:
                         # Pass entire path
                         pubkey, path = self.find_my_pubkey_in_txinout(txout)
-                        change[index] = {'path':path, 'variant': txout.script_type}
+                        change[index] = {'path': path,
+                                         'variant': txout.script_type}
 
             # The txn itself
             txn_bytes = bytes.fromhex(tx.serialize_to_network())
 
             # Request Jade generate the signatures for our inputs.
             # Change details are passed to be validated on the hw (user does not confirm)
-            self.handler.show_message(_("Please confirm the transaction details on your Jade device..."))
+            self.handler.show_message(
+                _("Please confirm the transaction details on your Jade device..."))
             client = self.get_client()
             signatures = client.sign_tx(txn_bytes, jade_inputs, change)
             assert len(signatures) == len(tx.inputs())
@@ -311,8 +335,8 @@ class Jade_KeyStore(Hardware_KeyStore):
                 pubkey, path = self.find_my_pubkey_in_txinout(txin)
                 if pubkey is not None and signature is not None:
                     tx.add_signature_to_txin(txin_idx=index,
-                                            signing_pubkey=pubkey.hex(),
-                                            sig=signature.hex())
+                                             signing_pubkey=pubkey.hex(),
+                                             sig=signature.hex())
         finally:
             self.handler.finished()
 
@@ -328,7 +352,8 @@ class Jade_KeyStore(Hardware_KeyStore):
 
     @runs_in_hwd_thread
     def register_multisig(self, name, txin_type, sorted, threshold, signers):
-        self.handler.show_message(_("Please confirm the multisig wallet details on your Jade device..."))
+        self.handler.show_message(
+            _("Please confirm the multisig wallet details on your Jade device..."))
         try:
             client = self.get_client()
             return client.register_multisig(name, txin_type, sorted, threshold, signers)
@@ -349,12 +374,14 @@ class JadePlugin(HW_PluginBase):
     keystore_class = Jade_KeyStore
     minimum_library = (0, 0, 1)
     DEVICE_IDS = [(0x10c4, 0xea60), (0x1a86, 0x55d4)]
-    SUPPORTED_XTYPES = ('standard', 'p2wpkh-p2sh', 'p2wpkh', 'p2wsh-p2sh', 'p2wsh')
+    SUPPORTED_XTYPES = ('standard', 'p2wpkh-p2sh',
+                        'p2wpkh', 'p2wsh-p2sh', 'p2wsh')
     MIN_SUPPORTED_FW_VERSION = (0, 1, 32)
 
     # For testing with qemu simulator (experimental)
     SIMULATOR_PATH = None  # 'tcp:127.0.0.1:2222'
-    SIMULATOR_TEST_SEED = None  # bytes.fromhex('b90e532426d0dc20fffe01037048c018e940300038b165c211915c672e07762c')
+    # bytes.fromhex('b90e532426d0dc20fffe01037048c018e940300038b165c211915c672e07762c')
+    SIMULATOR_TEST_SEED = None
 
     def enumerate_serial(self):
         # Jade is not really an HID device, it shows as a serial/com port device.
@@ -388,7 +415,8 @@ class JadePlugin(HW_PluginBase):
                 client.close()
             except Exception as e:
                 # If we get any sort of error do not add the simulator
-                _logger.debug("Failed to connect to Jade simulator at {}".format(self.SIMULATOR_PATH))
+                _logger.debug("Failed to connect to Jade simulator at {}".format(
+                    self.SIMULATOR_PATH))
                 _logger.debug(e)
 
         return devices
@@ -433,17 +461,21 @@ class JadePlugin(HW_PluginBase):
 
     def setup_device(self, device_info, wizard, purpose):
         device_id = device_info.device.id_
-        client = self.scan_and_create_client_for_device(device_id=device_id, wizard=wizard)
+        client = self.scan_and_create_client_for_device(
+            device_id=device_id, wizard=wizard)
 
         # Call authenticate on hww to ensure unlocked and suitable for network
         # May involve user entering PIN on (or even setting up!) hardware device
-        wizard.run_task_without_blocking_gui(task=lambda: client.authenticate())
+        wizard.run_task_without_blocking_gui(
+            task=lambda: client.authenticate())
         return client
 
     def get_xpub(self, device_id, derivation, xtype, wizard):
         if xtype not in self.SUPPORTED_XTYPES:
-            raise ScriptTypeNotSupported(_('This type of script is not supported with {}.').format(self.device))
-        client = self.scan_and_create_client_for_device(device_id=device_id, wizard=wizard)
+            raise ScriptTypeNotSupported(
+                _('This type of script is not supported with {}.').format(self.device))
+        client = self.scan_and_create_client_for_device(
+            device_id=device_id, wizard=wizard)
         xpub = client.get_xpub(derivation, xtype)
         return xpub
 
@@ -456,7 +488,8 @@ class JadePlugin(HW_PluginBase):
         path_suffix = wallet.get_address_index(address)
         if _is_multisig(wallet):
             # Multisig - wallet details must be registered on Jade hw
-            multisig_name = _register_multisig_wallet(wallet, keystore, address)
+            multisig_name = _register_multisig_wallet(
+                wallet, keystore, address)
 
             # Jade only needs the path suffix(es) and the multisig registration
             # name to generate the address, as the fixed derivation part is
@@ -470,4 +503,5 @@ class JadePlugin(HW_PluginBase):
             hw_address = keystore.show_address(path_suffix, txin_type)
 
         if hw_address != address:
-            keystore.handler.show_error(_('The address generated by {} does not match!').format(self.device))
+            keystore.handler.show_error(
+                _('The address generated by {} does not match!').format(self.device))

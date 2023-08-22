@@ -136,7 +136,8 @@ class QtHandlerBase(HardwareHandlerBase, QObject, Logger):
         d = WindowModalDialog(parent, _("Enter Passphrase"))
         if confirm:
             OK_button = OkButton(d)
-            playout = PasswordLayout(msg=msg, kind=PW_PASSPHRASE, OK_button=OK_button)
+            playout = PasswordLayout(
+                msg=msg, kind=PW_PASSPHRASE, OK_button=OK_button)
             vbox = QVBoxLayout()
             vbox.addLayout(playout.layout())
             vbox.addLayout(Buttons(CancelButton(d), OK_button))
@@ -171,7 +172,8 @@ class QtHandlerBase(HardwareHandlerBase, QObject, Logger):
         # Called more than once during signing, to confirm output and fee
         self.clear_dialog()
         title = _('Please check your {} device').format(self.device)
-        self.dialog = dialog = WindowModalDialog(self.top_level_window(), title)
+        self.dialog = dialog = WindowModalDialog(
+            self.top_level_window(), title)
         l = QLabel(msg)
         vbox = QVBoxLayout(dialog)
         vbox.addWidget(l)
@@ -216,19 +218,24 @@ class QtPluginBase(object):
                 window.show_error(message)
                 return
             tooltip = self.device + '\n' + (keystore.label or 'unnamed')
-            cb = partial(self._on_status_bar_button_click, window=window, keystore=keystore)
-            button = StatusBarButton(read_QIcon(self.icon_unpaired), tooltip, cb)
+            cb = partial(self._on_status_bar_button_click,
+                         window=window, keystore=keystore)
+            button = StatusBarButton(read_QIcon(
+                self.icon_unpaired), tooltip, cb)
             button.icon_paired = self.icon_paired
             button.icon_unpaired = self.icon_unpaired
             window.statusBar().addPermanentWidget(button)
             handler = self.create_handler(window)
             handler.button = button
             keystore.handler = handler
-            keystore.thread = TaskThread(window, on_error=partial(self.on_task_thread_error, window, keystore))
-            self.add_show_address_on_hw_device_button_for_receive_addr(wallet, keystore, window)
+            keystore.thread = TaskThread(window, on_error=partial(
+                self.on_task_thread_error, window, keystore))
+            self.add_show_address_on_hw_device_button_for_receive_addr(
+                wallet, keystore, window)
         # Trigger pairings
         devmgr = self.device_manager()
-        trigger_pairings = partial(devmgr.trigger_pairings, relevant_keystores, allow_user_interaction=True)
+        trigger_pairings = partial(
+            devmgr.trigger_pairings, relevant_keystores, allow_user_interaction=True)
         some_keystore = relevant_keystores[0]
         some_keystore.thread.add(trigger_pairings)
 
@@ -237,7 +244,8 @@ class QtPluginBase(object):
             self.show_settings_dialog(window=window, keystore=keystore)
         except (UserFacingException, UserCancelled) as e:
             exc_info = (type(e), e, e.__traceback__)
-            self.on_task_thread_error(window=window, keystore=keystore, exc_info=exc_info)
+            self.on_task_thread_error(
+                window=window, keystore=keystore, exc_info=exc_info)
 
     def on_task_thread_error(self: Union['QtPluginBase', HW_PluginBase], window: ElectrumWindow,
                              keystore: 'Hardware_KeyStore', exc_info):
@@ -247,6 +255,7 @@ class QtPluginBase(object):
                 self.set_ignore_outdated_fw()
                 # will need to re-pair
                 devmgr = self.device_manager()
+
                 def re_pair_device():
                     device_id = self.choose_device(window, keystore)
                     devmgr.unpair_id(device_id)
@@ -260,7 +269,8 @@ class QtPluginBase(object):
                       keystore: 'Hardware_KeyStore') -> Optional[str]:
         '''This dialog box should be usable even if the user has
         forgotten their PIN or it is in bootloader mode.'''
-        assert window.gui_thread != threading.current_thread(), 'must not be called from GUI thread'
+        assert window.gui_thread != threading.current_thread(
+        ), 'must not be called from GUI thread'
         device_id = self.device_manager().xpub_id(keystore.xpub)
         if not device_id:
             try:
@@ -280,13 +290,15 @@ class QtPluginBase(object):
                                                               keystore: 'Hardware_KeyStore',
                                                               main_window: ElectrumWindow):
         plugin = keystore.plugin
-        receive_address_e = main_window.receive_tab.receive_address_e
+        receive_address_e = main_window.receive_address_e
 
         def show_address():
             addr = str(receive_address_e.text())
-            keystore.thread.add(partial(plugin.show_address, wallet, addr, keystore))
+            keystore.thread.add(
+                partial(plugin.show_address, wallet, addr, keystore))
         dev_name = f"{plugin.device} ({keystore.label})"
-        receive_address_e.addButton("eye1.png", show_address, _("Show on {}").format(dev_name))
+        receive_address_e.addButton(
+            "eye1.png", show_address, _("Show on {}").format(dev_name))
 
     def create_handler(self, window: Union[ElectrumWindow, InstallWizard]) -> 'QtHandlerBase':
         raise NotImplementedError()

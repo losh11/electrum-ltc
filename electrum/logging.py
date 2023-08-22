@@ -9,19 +9,17 @@ import sys
 import pathlib
 import os
 import platform
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 import copy
 import subprocess
-
-if TYPE_CHECKING:
-    from .simple_config import SimpleConfig
 
 
 class LogFormatterForFiles(logging.Formatter):
 
     def formatTime(self, record, datefmt=None):
         # timestamps follow ISO 8601 UTC
-        date = datetime.datetime.fromtimestamp(record.created).astimezone(datetime.timezone.utc)
+        date = datetime.datetime.fromtimestamp(
+            record.created).astimezone(datetime.timezone.utc)
         if not datefmt:
             datefmt = "%Y%m%dT%H%M%S.%fZ"
         return date.strftime(datefmt)
@@ -31,7 +29,8 @@ class LogFormatterForFiles(logging.Formatter):
         return super().format(record)
 
 
-file_formatter = LogFormatterForFiles(fmt="%(asctime)22s | %(levelname)8s | %(name)s | %(message)s")
+file_formatter = LogFormatterForFiles(
+    fmt="%(asctime)22s | %(levelname)8s | %(name)s | %(message)s")
 
 
 class LogFormatterForConsole(logging.Formatter):
@@ -46,20 +45,23 @@ class LogFormatterForConsole(logging.Formatter):
 
 
 # try to make console log lines short... no timestamp, short levelname, no "electrum."
-console_formatter = LogFormatterForConsole(fmt="%(levelname).1s | %(name)s | %(message)s")
+console_formatter = LogFormatterForConsole(
+    fmt="%(levelname).1s | %(name)s | %(message)s")
 
 
 def _shorten_name_of_logrecord(record: logging.LogRecord) -> logging.LogRecord:
     record = copy.copy(record)  # avoid mutating arg
     # strip the main module name from the logger name
     if record.name.startswith("electrum."):
-        record.name = record.name[9:]
+        record.name = record.name[13:]
     # manual map to shorten common module names
     record.name = record.name.replace("interface.Interface", "interface", 1)
     record.name = record.name.replace("network.Network", "network", 1)
-    record.name = record.name.replace("synchronizer.Synchronizer", "synchronizer", 1)
+    record.name = record.name.replace(
+        "synchronizer.Synchronizer", "synchronizer", 1)
     record.name = record.name.replace("verifier.SPV", "verifier", 1)
-    record.name = record.name.replace("gui.qt.main_window.ElectrumWindow", "gui.qt.main_window", 1)
+    record.name = record.name.replace(
+        "gui.qt.main_window.ElectrumWindow", "gui.qt.main_window", 1)
     return record
 
 
@@ -114,7 +116,8 @@ class TruncatingMemoryHandler(logging.handlers.MemoryHandler):
 
 
 def _delete_old_logs(path, keep=10):
-    files = sorted(list(pathlib.Path(path).glob("electrum_log_*.log")), reverse=True)
+    files = sorted(list(pathlib.Path(path).glob(
+        "electrum_log_*.log")), reverse=True)
     for f in files[keep:]:
         try:
             os.remove(str(f))
@@ -123,6 +126,8 @@ def _delete_old_logs(path, keep=10):
 
 
 _logfile_path = None
+
+
 def _configure_file_logging(log_directory: pathlib.Path):
     global _logfile_path
     assert _logfile_path is None, 'file logging already initialized'
@@ -143,6 +148,8 @@ def _configure_file_logging(log_directory: pathlib.Path):
 
 
 console_stderr_handler = None
+
+
 def _configure_stderr_logging(*, verbosity=None, verbosity_shortcuts=None):
     # log to stderr; by default only WARNING and higher
     global console_stderr_handler
@@ -158,7 +165,8 @@ def _configure_stderr_logging(*, verbosity=None, verbosity_shortcuts=None):
         console_stderr_handler.setLevel(logging.DEBUG)
         root_logger.addHandler(console_stderr_handler)
         _process_verbosity_log_levels(verbosity)
-        _process_verbosity_filter_shortcuts(verbosity_shortcuts, handler=console_stderr_handler)
+        _process_verbosity_filter_shortcuts(
+            verbosity_shortcuts, handler=console_stderr_handler)
     if _inmemory_startup_logs:
         _inmemory_startup_logs.dump_to_target(console_stderr_handler)
 
@@ -171,7 +179,8 @@ def _process_verbosity_log_levels(verbosity):
     #   warning,network=debug,interface=debug    // effectively whitelists network and interface
     filters = verbosity.split(',')
     for filt in filters:
-        if not filt: continue
+        if not filt:
+            continue
         items = filt.split('=')
         if len(items) == 1:
             level = items[0]
@@ -271,7 +280,7 @@ electrum_logger.setLevel(logging.DEBUG)
 
 def get_logger(name: str) -> logging.Logger:
     if name.startswith("electrum."):
-        name = name[9:]
+        name = name[13:]
     return electrum_logger.getChild(name)
 
 
@@ -302,25 +311,26 @@ class Logger:
             name += f".[{diag_name}]"
         logger = get_logger(name)
         if self.LOGGING_SHORTCUT:
-            logger.addFilter(ShortcutInjectingFilter(shortcut=self.LOGGING_SHORTCUT))
+            logger.addFilter(ShortcutInjectingFilter(
+                shortcut=self.LOGGING_SHORTCUT))
         return logger
 
     def diagnostic_name(self):
         return ''
 
 
-def configure_logging(config: 'SimpleConfig', *, log_to_file: Optional[bool] = None) -> None:
-    from .util import is_android_debug_apk
-
+def configure_logging(config):
     verbosity = config.get('verbosity')
     verbosity_shortcuts = config.get('verbosity_shortcuts')
-    if not verbosity and config.get('gui_enable_debug_logs'):
-        verbosity = '*'
-    _configure_stderr_logging(verbosity=verbosity, verbosity_shortcuts=verbosity_shortcuts)
+    _configure_stderr_logging(
+        verbosity=verbosity, verbosity_shortcuts=verbosity_shortcuts)
 
-    if log_to_file is None:
-        log_to_file = config.get('log_to_file', False)
-        log_to_file |= is_android_debug_apk()
+    log_to_file = config.get('log_to_file', False)
+    is_android = 'ANDROID_DATA' in os.environ
+    if is_android:
+        from jnius import autoclass
+        build_config = autoclass("org.electrum.electrum.BuildConfig")
+        log_to_file |= bool(build_config.DEBUG)
     if log_to_file:
         log_directory = pathlib.Path(config.path) / "logs"
         _configure_file_logging(log_directory)
@@ -328,7 +338,8 @@ def configure_logging(config: 'SimpleConfig', *, log_to_file: Optional[bool] = N
     # clean up and delete in-memory logs
     global _inmemory_startup_logs
     if _inmemory_startup_logs:
-        num_discarded = _inmemory_startup_logs.num_messages_seen - _inmemory_startup_logs.max_size
+        num_discarded = _inmemory_startup_logs.num_messages_seen - \
+            _inmemory_startup_logs.max_size
         if num_discarded > 0:
             _logger.warning(f"Too many log messages! Some have been discarded. "
                             f"(discarded {num_discarded} messages)")
@@ -341,10 +352,13 @@ def configure_logging(config: 'SimpleConfig', *, log_to_file: Optional[bool] = N
 
     from . import ELECTRUM_VERSION
     from .constants import GIT_REPO_URL
-    _logger.info(f"Electrum version: {ELECTRUM_VERSION} - https://electrum.org - {GIT_REPO_URL}")
-    _logger.info(f"Python version: {sys.version}. On platform: {describe_os_version()}")
+    _logger.info(
+        f"Electrum-LTC version: {ELECTRUM_VERSION} - https://electrum-ltc.org - {GIT_REPO_URL}")
+    _logger.info(
+        f"Python version: {sys.version}. On platform: {describe_os_version()}")
     _logger.info(f"Logging to file: {str(_logfile_path)}")
-    _logger.info(f"Log filters: verbosity {repr(verbosity)}, verbosity_shortcuts {repr(verbosity_shortcuts)}")
+    _logger.info(
+        f"Log filters: verbosity {repr(verbosity)}, verbosity_shortcuts {repr(verbosity_shortcuts)}")
 
 
 def get_logfile_path() -> Optional[pathlib.Path]:
@@ -353,9 +367,9 @@ def get_logfile_path() -> Optional[pathlib.Path]:
 
 def describe_os_version() -> str:
     if 'ANDROID_DATA' in os.environ:
-        #from kivy import utils
-        #if utils.platform != "android":
-        #    return utils.platform
+        from kivy import utils
+        if utils.platform != "android":
+            return utils.platform
         import jnius
         bv = jnius.autoclass('android.os.Build$VERSION')
         b = jnius.autoclass('android.os.Build')

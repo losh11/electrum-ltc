@@ -1,3 +1,9 @@
+from functools import partial
+from electrum.gui.kivy.i18n import _
+from kivy.clock import Clock
+from kivy.uix.widget import Widget
+from kivy.uix.checkbox import CheckBox
+from kivy.uix.label import Label
 from kivy.app import App
 from kivy.factory import Factory
 from kivy.properties import ObjectProperty, BooleanProperty
@@ -74,14 +80,6 @@ Builder.load_string('''
 ''')
 
 
-from kivy.uix.label import Label
-from kivy.uix.checkbox import CheckBox
-from kivy.uix.widget import Widget
-from kivy.clock import Clock
-
-from electrum.gui.kivy.i18n import _
-from functools import partial
-
 class FxDialog(Factory.Popup):
 
     def __init__(self, app, plugins, config, callback):
@@ -102,7 +100,8 @@ class FxDialog(Factory.Popup):
     def add_exchanges(self):
         ex = self.ids.exchanges
         if self.fx.is_enabled():
-            exchanges = sorted(self.fx.get_exchanges_by_ccy(self.fx.get_currency(), self.has_history_rates))
+            exchanges = sorted(self.fx.get_exchanges_by_ccy(
+                self.fx.get_currency(), self.has_history_rates))
             mx = self.fx.exchange.name()
             if mx in exchanges:
                 ex.text = mx
@@ -122,7 +121,8 @@ class FxDialog(Factory.Popup):
             self.fx.set_exchange(text)
 
     def add_currencies(self):
-        currencies = [_('None')] + self.fx.get_currencies(self.has_history_rates)
+        currencies = [_('None')] + \
+            self.fx.get_currencies(self.has_history_rates)
         my_ccy = self.fx.get_currency() if self.fx.is_enabled() else _('None')
         self.ids.ccy.values = currencies
         self.ids.ccy.text = my_ccy

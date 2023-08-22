@@ -9,7 +9,7 @@ from electrum.lnutil import ln_dummy_address
 from electrum.transaction import PartialTxOutput, PartialTransaction
 
 from .util import (WindowModalDialog, Buttons, OkButton, CancelButton,
-                   EnterButton, ColorScheme, WWLabel, read_QIcon, IconLabel, char_width_in_lineedit)
+                   EnterButton, ColorScheme, WWLabel, read_QIcon, IconLabel)
 from .amountedit import BTCAmountEdit
 from .fee_slider import FeeSlider, FeeComboBox
 
@@ -43,8 +43,7 @@ class SwapDialog(WindowModalDialog):
         self.send_amount_e = BTCAmountEdit(self.window.get_decimal_point)
         self.recv_amount_e = BTCAmountEdit(self.window.get_decimal_point)
         self.max_button = EnterButton(_("Max"), self.spend_max)
-        btn_width = 10 * char_width_in_lineedit()
-        self.max_button.setFixedWidth(btn_width)
+        self.max_button.setFixedWidth(100)
         self.max_button.setCheckable(True)
         self.toggle_button = QPushButton(u'\U000021c4')
         self.toggle_button.setEnabled(is_reverse is None)
@@ -63,7 +62,8 @@ class SwapDialog(WindowModalDialog):
         self.send_amount_e.setEnabled(recv_amount_sat is None)
         self.recv_amount_e.setEnabled(recv_amount_sat is None)
         self.max_button.setEnabled(recv_amount_sat is None)
-        fee_slider = FeeSlider(self.window, self.config, self.fee_slider_callback)
+        fee_slider = FeeSlider(self.window, self.config,
+                               self.fee_slider_callback)
         fee_combo = FeeComboBox(fee_slider)
         fee_slider.update()
         self.fee_label = QLabel()
@@ -140,7 +140,8 @@ class SwapDialog(WindowModalDialog):
             amount = self.tx.output_value_for_address(ln_dummy_address())
             max_swap_amt = self.swap_manager.get_max_amount()
             max_recv_amt_ln = int(self.swap_manager.num_sats_can_receive())
-            max_recv_amt_oc = self.swap_manager.get_send_amount(max_recv_amt_ln, is_reverse=False) or float('inf')
+            max_recv_amt_oc = self.swap_manager.get_send_amount(
+                max_recv_amt_ln, is_reverse=False) or float('inf')
             max_amt = int(min(max_swap_amt, max_recv_amt_oc))
             if amount > max_amt:
                 amount = max_amt
@@ -151,7 +152,8 @@ class SwapDialog(WindowModalDialog):
                 self.send_amount_e.setAmount(amount)
 
     def _spend_max_reverse_swap(self):
-        amount = min(self.lnworker.num_sats_can_send(), self.swap_manager.get_max_amount())
+        amount = min(self.lnworker.num_sats_can_send(),
+                     self.swap_manager.get_max_amount())
         self.send_amount_e.setAmount(amount)
 
     def on_send_edited(self):
@@ -159,7 +161,8 @@ class SwapDialog(WindowModalDialog):
             return
         self.send_amount_e.setStyleSheet(ColorScheme.DEFAULT.as_stylesheet())
         send_amount = self.send_amount_e.get_amount()
-        recv_amount = self.swap_manager.get_recv_amount(send_amount, is_reverse=self.is_reverse)
+        recv_amount = self.swap_manager.get_recv_amount(
+            send_amount, is_reverse=self.is_reverse)
         if self.is_reverse and send_amount and send_amount > self.lnworker.num_sats_can_send():
             # cannot send this much on lightning
             recv_amount = None
@@ -180,7 +183,8 @@ class SwapDialog(WindowModalDialog):
             return
         self.recv_amount_e.setStyleSheet(ColorScheme.DEFAULT.as_stylesheet())
         recv_amount = self.recv_amount_e.get_amount()
-        send_amount = self.swap_manager.get_send_amount(recv_amount, is_reverse=self.is_reverse)
+        send_amount = self.swap_manager.get_send_amount(
+            recv_amount, is_reverse=self.is_reverse)
         if self.is_reverse and send_amount and send_amount > self.lnworker.num_sats_can_send():
             send_amount = None
         self.send_amount_e.follows = True
@@ -195,14 +199,18 @@ class SwapDialog(WindowModalDialog):
     def update(self):
         from .util import IconLabel
         sm = self.swap_manager
-        send_icon = read_QIcon("lightning.png" if self.is_reverse else "bitcoin.png")
+        send_icon = read_QIcon(
+            "lightning.png" if self.is_reverse else "bitcoin.png")
         self.send_label.setIcon(send_icon)
-        recv_icon = read_QIcon("lightning.png" if not self.is_reverse else "bitcoin.png")
+        recv_icon = read_QIcon(
+            "lightning.png" if not self.is_reverse else "bitcoin.png")
         self.recv_label.setIcon(recv_icon)
         self.description_label.setText(self.get_description())
         self.description_label.repaint()  # macOS hack for #6269
         server_mining_fee = sm.lockup_fee if self.is_reverse else sm.normal_fee
-        server_fee_str = '%.2f'%sm.percentage + '%  +  '  + self.window.format_amount(server_mining_fee) + ' ' + self.window.base_unit()
+        server_fee_str = '%.2f' % sm.percentage + '%  +  ' + \
+            self.window.format_amount(
+                server_mining_fee) + ' ' + self.window.base_unit()
         self.server_fee_label.setText(server_fee_str)
         self.server_fee_label.repaint()  # macOS hack for #6269
         self.update_tx()
@@ -216,7 +224,8 @@ class SwapDialog(WindowModalDialog):
             fee = sm.get_claim_fee()
         else:
             fee = self.tx.get_fee() if self.tx else None
-        fee_text = self.window.format_amount(fee) + ' ' + self.window.base_unit() if fee else ''
+        fee_text = self.window.format_amount(
+            fee) + ' ' + self.window.base_unit() if fee else ''
         self.fee_label.setText(fee_text)
         self.fee_label.repaint()  # macOS hack for #6269
 
@@ -242,7 +251,8 @@ class SwapDialog(WindowModalDialog):
             if lightning_amount > self.swap_manager.num_sats_can_receive():
                 if not self.window.question(CANNOT_RECEIVE_WARNING):
                     return
-            self.window.protect(self.do_normal_swap, (lightning_amount, onchain_amount))
+            self.window.protect(self.do_normal_swap,
+                                (lightning_amount, onchain_amount))
             return True
 
     def update_tx(self):
@@ -262,7 +272,8 @@ class SwapDialog(WindowModalDialog):
         if onchain_amount is None:
             self.tx = None
             return
-        outputs = [PartialTxOutput.from_address_and_value(ln_dummy_address(), onchain_amount)]
+        outputs = [PartialTxOutput.from_address_and_value(
+            ln_dummy_address(), onchain_amount)]
         coins = self.window.get_coins()
         try:
             self.tx = self.window.wallet.make_unsigned_transaction(

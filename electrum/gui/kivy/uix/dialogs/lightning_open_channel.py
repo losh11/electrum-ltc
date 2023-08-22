@@ -107,11 +107,13 @@ Builder.load_string('''
                 disabled: not root.pubkey or not root.amount
 ''')
 
+
 class LightningOpenChannelDialog(Factory.Popup, Logger):
     def ipport_dialog(self):
         def callback(text):
             self.ipport = text
-        d = LabelDialog(_('IP/port in format:\n[host]:[port]'), self.ipport, callback)
+        d = LabelDialog(
+            _('IP/port in format:\n[host]:[port]'), self.ipport, callback)
         d.open()
 
     def suggest_node(self):
@@ -126,7 +128,8 @@ class LightningOpenChannelDialog(Factory.Popup, Logger):
                 self.pubkey = f"Please wait, graph is updating ({percent}% / 30% done)."
         else:
             self.trampoline_index += 1
-            self.trampoline_index = self.trampoline_index % len(self.trampoline_names)
+            self.trampoline_index = self.trampoline_index % len(
+                self.trampoline_names)
             self.pubkey = self.trampoline_names[self.trampoline_index]
 
     def __init__(self, app, lnaddr=None, msg=None):
@@ -149,7 +152,8 @@ class LightningOpenChannelDialog(Factory.Popup, Logger):
             fee = self.app.electrum_config.fee_per_kb()
             if not fee:
                 fee = config.FEERATE_FALLBACK_STATIC_FEE
-            self.amount = self.app.format_amount_and_units(self.lnaddr.amount * COIN + fee * 2)  # FIXME magic number?!
+            self.amount = self.app.format_amount_and_units(
+                self.lnaddr.amount * COIN + fee * 2)  # FIXME magic number?!
             self.pubkey = bh2u(self.lnaddr.pubkey.serialize())
         if self.msg:
             self.app.show_info(self.msg)
@@ -189,7 +193,8 @@ class LightningOpenChannelDialog(Factory.Popup, Logger):
             return
         if lnworker.has_conflicting_backup_with(node_id):
             msg = messages.MGS_CONFLICTING_BACKUP_INSTANCE
-            d = Question(msg, lambda x: self._open_channel(x, conn_str, amount))
+            d = Question(msg, lambda x: self._open_channel(
+                x, conn_str, amount))
             d.open()
         else:
             self._open_channel(True, conn_str, amount)
@@ -200,15 +205,18 @@ class LightningOpenChannelDialog(Factory.Popup, Logger):
         lnworker = self.app.wallet.lnworker
         coins = self.app.wallet.get_spendable_coins(None, nonlocal_only=True)
         node_id, rest = extract_nodeid(conn_str)
-        make_tx = lambda rbf: lnworker.mktx_for_open_channel(
+
+        def make_tx(rbf): return lnworker.mktx_for_open_channel(
             coins=coins,
             funding_sat=amount,
             node_id=node_id,
             fee_est=None)
-        on_pay = lambda tx: self.app.protected('Create a new channel?', self.do_open_channel, (tx, conn_str))
+
+        def on_pay(tx): return self.app.protected(
+            'Create a new channel?', self.do_open_channel, (tx, conn_str))
         d = ConfirmTxDialog(
             self.app,
-            amount = amount,
+            amount=amount,
             make_tx=make_tx,
             on_pay=on_pay,
             show_final=False)
@@ -227,7 +235,8 @@ class LightningOpenChannelDialog(Factory.Popup, Logger):
                 password=password)
         except Exception as e:
             self.app.logger.exception("Problem opening channel")
-            self.app.show_error(_('Problem opening channel: ') + '\n' + repr(e))
+            self.app.show_error(
+                _('Problem opening channel: ') + '\n' + repr(e))
             return
         # TODO: it would be nice to show this before broadcasting
         if chan.has_onchain_backup():
@@ -253,7 +262,8 @@ class LightningOpenChannelDialog(Factory.Popup, Logger):
             _('This channel will be usable after {} confirmations').format(n)
         ])
         if not funding_tx.is_complete():
-            message += '\n\n' + _('Please sign and broadcast the funding transaction')
+            message += '\n\n' + \
+                _('Please sign and broadcast the funding transaction')
         self.app.show_info(message)
 
         if not funding_tx.is_complete():

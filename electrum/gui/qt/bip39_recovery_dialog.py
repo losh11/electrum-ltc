@@ -30,11 +30,12 @@ class Bip39RecoveryDialog(WindowModalDialog):
         self.setMinimumWidth(400)
         vbox = QVBoxLayout(self)
         self.content = QVBoxLayout()
-        self.content.addWidget(QLabel(_('Scanning common paths for existing accounts...')))
+        self.content.addWidget(
+            QLabel(_('Scanning common paths for existing accounts...')))
         vbox.addLayout(self.content)
 
         self.thread = TaskThread(self)
-        self.thread.finished.connect(self.deleteLater) # see #3956
+        self.thread.finished.connect(self.deleteLater)  # see #3956
         network = Network.get_instance()
         coro = account_discovery(network, self.get_account_xpub)
         fut = asyncio.run_coroutine_threadsafe(coro, network.asyncio_loop)

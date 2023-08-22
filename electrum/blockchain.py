@@ -33,13 +33,20 @@ from .util import bfh, bh2u, with_lock
 from .simple_config import SimpleConfig
 from .logging import get_logger, Logger
 
+try:
+    import scrypt
+    getPoWHash = lambda x: scrypt.hash(x, x, N=1024, r=1, p=1, buflen=32)
+except ImportError:
+    util.print_msg("Warning: package scrypt not available; synchronization could be very slow")
+    from .scrypt import scrypt_1024_1_1_80 as getPoWHash
+
 
 _logger = get_logger(__name__)
 
 HEADER_SIZE = 80  # bytes
 
 # see https://github.com/bitcoin/bitcoin/blob/feedb9c84e72e4fff489810a2bbeec09bcda5763/src/chainparams.cpp#L76
-MAX_TARGET = 0x00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff  # compact: 0x1d00ffff
+MAX_TARGET = 0x00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
 
 
 class MissingHeader(Exception):
@@ -83,6 +90,9 @@ def hash_header(header: dict) -> str:
 
 def hash_raw_header(header: str) -> str:
     return hash_encode(sha256d(bfh(header)))
+
+def pow_hash_header(header):
+    return hash_encode(getPoWHash(bfh(serialize_header(header))))
 
 
 # key: blockhash hex at forkpoint
@@ -295,6 +305,7 @@ class Blockchain(Logger):
     @classmethod
     def verify_header(cls, header: dict, prev_hash: str, target: int, expected_header_hash: str=None) -> None:
         _hash = hash_header(header)
+        _powhash = pow_hash_header(header)
         if expected_header_hash and expected_header_hash != _hash:
             raise Exception("hash mismatches with expected: {} vs {}".format(expected_header_hash, _hash))
         if prev_hash != header.get('prev_block_hash'):
@@ -304,7 +315,7 @@ class Blockchain(Logger):
         bits = cls.target_to_bits(target)
         if bits != header.get('bits'):
             raise Exception("bits mismatch: %s vs %s" % (bits, header.get('bits')))
-        block_hash_as_num = int.from_bytes(bfh(_hash), byteorder='big')
+        block_hash_as_num = int.from_bytes(bfh(_powhash), byteorder='big')
         if block_hash_as_num > target:
             raise Exception(f"insufficient proof of work: {block_hash_as_num} vs target {target}")
 
@@ -507,7 +518,7 @@ class Blockchain(Logger):
             return constants.net.GENESIS
         elif is_height_checkpoint():
             index = height // 2016
-            h, t = self.checkpoints[index]
+            h, t, _ = self.checkpoints[index]
             return h
         else:
             header = self.read_header(height)
@@ -515,24 +526,32 @@ class Blockchain(Logger):
                 raise MissingHeader(height)
             return hash_header(header)
 
+    def get_timestamp(self, height):
+        if height < len(self.checkpoints) * 2016 and (height+1) % 2016 == 0:
+            index = height // 2016
+            _, _, ts = self.checkpoints[index]
+            return ts
+        return self.read_header(height).get('timestamp')
+
     def get_target(self, index: int) -> int:
         # compute target from chunk x, used in chunk x+1
         if constants.net.TESTNET:
             return 0
         if index == -1:
-            return MAX_TARGET
+            return 0x00000FFFF0000000000000000000000000000000000000000000000000000000
         if index < len(self.checkpoints):
-            h, t = self.checkpoints[index]
+            h, t, _ = self.checkpoints[index]
             return t
         # new target
-        first = self.read_header(index * 2016)
+        # Litecoin: go back the full period unless it's the first retarget
+        first_timestamp = self.get_timestamp(index * 2016 - 1 if index > 0 else 0)
         last = self.read_header(index * 2016 + 2015)
-        if not first or not last:
+        if not first_timestamp or not last:
             raise MissingHeader()
         bits = last.get('bits')
         target = self.bits_to_target(bits)
-        nActualTimespan = last.get('timestamp') - first.get('timestamp')
-        nTargetTimespan = 14 * 24 * 60 * 60
+        nActualTimespan = last.get('timestamp') - first_timestamp
+        nTargetTimespan = 84 * 60 * 60
         nActualTimespan = max(nActualTimespan, nTargetTimespan // 4)
         nActualTimespan = min(nActualTimespan, nTargetTimespan * 4)
         new_target = min(MAX_TARGET, (target * nActualTimespan) // nTargetTimespan)
@@ -654,7 +673,9 @@ class Blockchain(Logger):
         for index in range(n):
             h = self.get_hash((index+1) * 2016 -1)
             target = self.get_target(index)
-            cp.append((h, target))
+            # Litecoin: also store the timestamp of the last block
+            tstamp = self.get_timestamp((index+1) * 2016 - 1)
+            cp.append((h, target, tstamp))
         return cp
 
 

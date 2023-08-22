@@ -29,8 +29,8 @@ if TYPE_CHECKING:
     from .lnworker import LNWallet
 
 
-API_URL_MAINNET = 'https://swaps.electrum.org/api'
-API_URL_TESTNET = 'https://swaps.electrum.org/testnet'
+API_URL_MAINNET = 'https://swaps.electrum-ltc.org/api'
+API_URL_TESTNET = 'https://swaps.electrum-ltc.org/testnet'
 API_URL_REGTEST = 'https://localhost/api'
 
 
@@ -178,11 +178,11 @@ class SwapManager(Logger):
     async def _claim_swap(self, swap: SwapData) -> None:
         assert self.network
         assert self.lnwatcher
-        if not self.lnwatcher.adb.is_up_to_date():
+        if not self.lnwatcher.is_up_to_date():
             return
         current_height = self.network.get_local_height()
         delta = current_height - swap.locktime
-        txos = self.lnwatcher.adb.get_addr_outputs(swap.lockup_address)
+        txos = self.lnwatcher.get_addr_outputs(swap.lockup_address)
         for txin in txos.values():
             if swap.is_reverse and txin.value_sats() < swap.onchain_amount:
                 self.logger.info('amount too low, we should not reveal the preimage')
@@ -200,7 +200,7 @@ class SwapManager(Logger):
                         swap.is_redeemed = True
                 elif spent_height == TX_HEIGHT_LOCAL:
                     if txin.block_height > 0 or self.wallet.config.get('allow_instant_swaps', False):
-                        tx = self.lnwatcher.adb.get_transaction(txin.spent_txid)
+                        tx = self.lnwatcher.get_transaction(txin.spent_txid)
                         self.logger.info(f'broadcasting tx {txin.spent_txid}')
                         await self.network.broadcast_transaction(tx)
                 # already in mempool
@@ -230,8 +230,8 @@ class SwapManager(Logger):
             )
             self.sign_tx(tx, swap)
             self.logger.info(f'adding claim tx {tx.txid()}')
-            self.wallet.adb.add_transaction(tx)
-            swap.spending_txid = tx.txid()
+            self.wallet.add_transaction(tx)
+            self.lnwatcher.add_transaction(tx)
 
     def get_claim_fee(self):
         return self.wallet.config.estimate_fee(136, allow_fallback_to_static_rates=True)
@@ -263,7 +263,7 @@ class SwapManager(Logger):
             tx: PartialTransaction = None,
             channels = None,
     ) -> str:
-        """send on-chain BTC, receive on Lightning
+        """send on-chain LTC, receive on Lightning
 
         - User generates an LN invoice with RHASH, and knows preimage.
         - User creates on-chain output locked to RHASH.
@@ -285,12 +285,12 @@ class SwapManager(Logger):
         preimage = self.lnworker.get_preimage(payment_hash)
         request_data = {
             "type": "submarine",
-            "pairId": "BTC/BTC",
+            "pairId": "LTC/LTC",
             "orderSide": "sell",
             "invoice": invoice,
             "refundPublicKey": pubkey.hex()
         }
-        response = await self.network.async_send_http_on_proxy(
+        response = await self.network._send_http_on_proxy(
             'post',
             self.api_url + '/createswap',
             json=request_data,
@@ -320,7 +320,7 @@ class SwapManager(Logger):
             raise Exception(f"fswap check failed: onchain_amount is more than what we estimated: "
                             f"{onchain_amount} > {expected_onchain_amount_sat}")
         # verify that they are not locking up funds for more than a day
-        if locktime - self.network.get_local_height() >= 144:
+        if locktime - self.network.get_local_height() >= 576:
             raise Exception("fswap check failed: locktime too far in future")
         # create funding tx
         funding_output = PartialTxOutput.from_address_and_value(lockup_address, onchain_amount)
@@ -380,13 +380,13 @@ class SwapManager(Logger):
         preimage_hash = sha256(preimage)
         request_data = {
             "type": "reversesubmarine",
-            "pairId": "BTC/BTC",
+            "pairId": "LTC/LTC",
             "orderSide": "buy",
             "invoiceAmount": lightning_amount_sat,
             "preimageHash": preimage_hash.hex(),
             "claimPublicKey": pubkey.hex()
         }
-        response = await self.network.async_send_http_on_proxy(
+        response = await self.network._send_http_on_proxy(
             'post',
             self.api_url + '/createswap',
             json=request_data,
@@ -470,17 +470,17 @@ class SwapManager(Logger):
         self._swaps_by_lockup_address[swap.lockup_address] = swap
 
     async def get_pairs(self) -> None:
-        from .network import Network
-        response = await Network.async_send_http_on_proxy(
+        assert self.network
+        response = await self.network._send_http_on_proxy(
             'get',
             self.api_url + '/getpairs',
             timeout=30)
         pairs = json.loads(response)
-        fees = pairs['pairs']['BTC/BTC']['fees']
+        fees = pairs['pairs']['LTC/LTC']['fees']
         self.percentage = fees['percentage']
         self.normal_fee = fees['minerFees']['baseAsset']['normal']
         self.lockup_fee = fees['minerFees']['baseAsset']['reverse']['lockup']
-        limits = pairs['pairs']['BTC/BTC']['limits']
+        limits = pairs['pairs']['LTC/LTC']['limits']
         self.min_amount = limits['minimal']
         self._max_amount = limits['maximal']
 

@@ -23,6 +23,7 @@ config = SimpleConfig()
 network = Network(config)
 network.start()
 
+
 @log_exceptions
 async def f():
     try:
