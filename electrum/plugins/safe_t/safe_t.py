@@ -30,14 +30,16 @@ class SafeTKeyStore(Hardware_KeyStore):
     plugin: 'SafeTPlugin'
 
     def decrypt_message(self, sequence, message, password):
-        raise UserFacingException(_('Encryption and decryption are not implemented by {}').format(self.device))
+        raise UserFacingException(
+            _('Encryption and decryption are not implemented by {}').format(self.device))
 
     @runs_in_hwd_thread
     def sign_message(self, sequence, message, password, *, script_type=None):
         client = self.get_client()
-        address_path = self.get_derivation_prefix() + "/%d/%d"%sequence
+        address_path = self.get_derivation_prefix() + "/%d/%d" % sequence
         address_n = client.expand_path(address_path)
-        msg_sig = client.sign_message(self.plugin.get_coin_name(), address_n, message)
+        msg_sig = client.sign_message(
+            self.plugin.get_coin_name(), address_n, message)
         return msg_sig.signature
 
     @runs_in_hwd_thread
@@ -49,7 +51,8 @@ class SafeTKeyStore(Hardware_KeyStore):
         for txin in tx.inputs():
             tx_hash = txin.prevout.txid.hex()
             if txin.utxo is None and not txin.is_segwit():
-                raise UserFacingException(_('Missing previous tx for legacy input.'))
+                raise UserFacingException(
+                    _('Missing previous tx for legacy input.'))
             prev_tx[tx_hash] = txin.utxo
 
         self.plugin.sign_transaction(self, tx, prev_tx)
@@ -67,7 +70,8 @@ class SafeTPlugin(HW_PluginBase):
     minimum_firmware = (1, 0, 5)
     keystore_class = SafeTKeyStore
     minimum_library = (0, 1, 0)
-    SUPPORTED_XTYPES = ('standard', 'p2wpkh-p2sh', 'p2wpkh', 'p2wsh-p2sh', 'p2wsh')
+    SUPPORTED_XTYPES = ('standard', 'p2wpkh-p2sh',
+                        'p2wpkh', 'p2wsh-p2sh', 'p2wsh')
 
     MAX_LABEL_LEN = 32
 
@@ -154,7 +158,7 @@ class SafeTPlugin(HW_PluginBase):
         return client
 
     def get_coin_name(self):
-        return "Testnet" if constants.net.TESTNET else "Bitcoin"
+        return "Testnet" if constants.net.TESTNET else "Litecoin"
 
     def initialize_device(self, device_id, wizard, handler):
         # Initialization method
@@ -165,7 +169,7 @@ class SafeTPlugin(HW_PluginBase):
                 "and upload them to your {}, and so you should "
                 "only do those on a computer you know to be trustworthy "
                 "and free of malware."
-        ).format(self.device, self.device)
+                ).format(self.device, self.device)
         choices = [
             # Must be short as QT doesn't word-wrap radio button text
             (TIM_NEW, _("Let the device generate a completely new seed randomly")),
@@ -173,10 +177,13 @@ class SafeTPlugin(HW_PluginBase):
             (TIM_MNEMONIC, _("Upload a BIP39 mnemonic to generate the seed")),
             (TIM_PRIVKEY, _("Upload a master private key"))
         ]
+
         def f(method):
             import threading
-            settings = self.request_safe_t_init_settings(wizard, method, self.device)
-            t = threading.Thread(target=self._initialize_device_safe, args=(settings, method, device_id, wizard, handler))
+            settings = self.request_safe_t_init_settings(
+                wizard, method, self.device)
+            t = threading.Thread(target=self._initialize_device_safe, args=(
+                settings, method, device_id, wizard, handler))
             t.daemon = True
             t.start()
             exit_code = wizard.loop.exec_()
@@ -185,12 +192,14 @@ class SafeTPlugin(HW_PluginBase):
                 # of leaving the device in an initialized state when finishing.
                 # signal that this is not the case:
                 raise UserCancelled()
-        wizard.choice_dialog(title=_('Initialize Device'), message=msg, choices=choices, run_next=f)
+        wizard.choice_dialog(title=_('Initialize Device'),
+                             message=msg, choices=choices, run_next=f)
 
     def _initialize_device_safe(self, settings, method, device_id, wizard, handler):
         exit_code = 0
         try:
-            self._initialize_device(settings, method, device_id, wizard, handler)
+            self._initialize_device(
+                settings, method, device_id, wizard, handler)
         except UserCancelled:
             exit_code = 1
         except BaseException as e:
@@ -230,7 +239,7 @@ class SafeTPlugin(HW_PluginBase):
             word_count = 6 * (item + 2)  # 12, 18 or 24
             client.step = 0
             client.recovery_device(word_count, passphrase_protection,
-                                       pin_protection, label, language)
+                                   pin_protection, label, language)
         elif method == TIM_MNEMONIC:
             pin = pin_protection  # It's the pin, not a boolean
             client.load_device_by_mnemonic(str(item), pin,
@@ -254,7 +263,8 @@ class SafeTPlugin(HW_PluginBase):
 
     def setup_device(self, device_info, wizard, purpose):
         device_id = device_info.device.id_
-        client = self.scan_and_create_client_for_device(device_id=device_id, wizard=wizard)
+        client = self.scan_and_create_client_for_device(
+            device_id=device_id, wizard=wizard)
         if not device_info.initialized:
             self.initialize_device(device_id, wizard, client.handler)
         wizard.run_task_without_blocking_gui(
@@ -264,8 +274,10 @@ class SafeTPlugin(HW_PluginBase):
 
     def get_xpub(self, device_id, derivation, xtype, wizard):
         if xtype not in self.SUPPORTED_XTYPES:
-            raise ScriptTypeNotSupported(_('This type of script is not supported with {}.').format(self.device))
-        client = self.scan_and_create_client_for_device(device_id=device_id, wizard=wizard)
+            raise ScriptTypeNotSupported(
+                _('This type of script is not supported with {}.').format(self.device))
+        client = self.scan_and_create_client_for_device(
+            device_id=device_id, wizard=wizard)
         xpub = client.get_xpub(derivation, xtype)
         client.used()
         return xpub
@@ -315,7 +327,7 @@ class SafeTPlugin(HW_PluginBase):
             return
         deriv_suffix = wallet.get_address_index(address)
         derivation = keystore.get_derivation_prefix()
-        address_path = "%s/%d/%d"%(derivation, *deriv_suffix)
+        address_path = "%s/%d/%d" % (derivation, *deriv_suffix)
         address_n = client.expand_path(address_path)
         script_type = self.get_safet_input_script_type(wallet.txin_type)
 
@@ -331,7 +343,8 @@ class SafeTPlugin(HW_PluginBase):
         else:
             multisig = None
 
-        client.get_address(self.get_coin_name(), address_n, True, multisig=multisig, script_type=script_type)
+        client.get_address(self.get_coin_name(), address_n,
+                           True, multisig=multisig, script_type=script_type)
 
     def tx_inputs(self, tx: Transaction, *, for_sig=False, keystore: 'SafeTKeyStore' = None):
         inputs = []
@@ -346,15 +359,19 @@ class SafeTPlugin(HW_PluginBase):
                     assert isinstance(txin, PartialTxInput)
                     assert keystore
                     if len(txin.pubkeys) > 1:
-                        xpubs_and_deriv_suffixes = get_xpubs_and_der_suffixes_from_txinout(tx, txin)
-                        multisig = self._make_multisig(txin.num_sig, xpubs_and_deriv_suffixes)
+                        xpubs_and_deriv_suffixes = get_xpubs_and_der_suffixes_from_txinout(
+                            tx, txin)
+                        multisig = self._make_multisig(
+                            txin.num_sig, xpubs_and_deriv_suffixes)
                     else:
                         multisig = None
-                    script_type = self.get_safet_input_script_type(txin.script_type)
+                    script_type = self.get_safet_input_script_type(
+                        txin.script_type)
                     txinputtype = self.types.TxInputType(
                         script_type=script_type,
                         multisig=multisig)
-                    my_pubkey, full_path = keystore.find_my_pubkey_in_txinout(txin)
+                    my_pubkey, full_path = keystore.find_my_pubkey_in_txinout(
+                        txin)
                     if full_path:
                         txinputtype._extend_address_n(full_path)
 
@@ -389,8 +406,10 @@ class SafeTPlugin(HW_PluginBase):
         def create_output_by_derivation():
             script_type = self.get_safet_output_script_type(txout.script_type)
             if len(txout.pubkeys) > 1:
-                xpubs_and_deriv_suffixes = get_xpubs_and_der_suffixes_from_txinout(tx, txout)
-                multisig = self._make_multisig(txout.num_sig, xpubs_and_deriv_suffixes)
+                xpubs_and_deriv_suffixes = get_xpubs_and_der_suffixes_from_txinout(
+                    tx, txout)
+                multisig = self._make_multisig(
+                    txout.num_sig, xpubs_and_deriv_suffixes)
             else:
                 multisig = None
             my_pubkey, full_path = keystore.find_my_pubkey_in_txinout(txout)
@@ -410,7 +429,8 @@ class SafeTPlugin(HW_PluginBase):
                 txoutputtype.address = address
             else:
                 txoutputtype.script_type = self.types.OutputScriptType.PAYTOOPRETURN
-                txoutputtype.op_return_data = trezor_validate_op_return_output_and_get_data(txout)
+                txoutputtype.op_return_data = trezor_validate_op_return_output_and_get_data(
+                    txout)
             return txoutputtype
 
         outputs = []

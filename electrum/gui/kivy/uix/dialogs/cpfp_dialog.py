@@ -102,6 +102,7 @@ Builder.load_string('''
                     root.on_ok()
 ''')
 
+
 class CPFPDialog(FeeSliderDialog, Factory.Popup):
 
     def __init__(self, app: 'ElectrumWindow', parent_fee, total_size, new_tx, callback):
@@ -114,8 +115,9 @@ class CPFPDialog(FeeSliderDialog, Factory.Popup):
         FeeSliderDialog.__init__(self, app.electrum_config, self.ids.slider)
         self.callback = callback
         self.config = app.electrum_config
-        self.ids.total_size.value = ('%d bytes'% self.total_size)
-        self.ids.input_amount.value = self.app.format_amount(self.max_fee) + ' ' + self.app._get_bu()
+        self.ids.total_size.value = ('%d bytes' % self.total_size)
+        self.ids.input_amount.value = self.app.format_amount(
+            self.max_fee) + ' ' + self.app._get_bu()
         self.update_slider()
         self.update_text()
 
@@ -125,7 +127,8 @@ class CPFPDialog(FeeSliderDialog, Factory.Popup):
         fee = fee_per_kb * self.total_size / 1000 - self.parent_fee
         fee = round(fee)
         fee = min(self.max_fee, fee)
-        fee = max(self.total_size, fee)  # pay at least 1 sat/byte for combined size
+        # pay at least 1 sat/byte for combined size
+        fee = max(self.total_size, fee)
         return fee
 
     def update_text(self):
@@ -138,10 +141,14 @@ class CPFPDialog(FeeSliderDialog, Factory.Popup):
         else:
             comb_fee = self.fee + self.parent_fee
             comb_feerate = 1000 * comb_fee / self.total_size
-            self.ids.fee_for_child.value = self.app.format_amount_and_units(self.fee)
-            self.ids.output_amount.value = self.app.format_amount_and_units(self.max_fee-self.fee) if self.max_fee > self.fee else ''
-            self.ids.total_fee.value = self.app.format_amount_and_units(self.fee+self.parent_fee)
-            self.ids.total_feerate.value = self.app.format_fee_rate(comb_feerate)
+            self.ids.fee_for_child.value = self.app.format_amount_and_units(
+                self.fee)
+            self.ids.output_amount.value = self.app.format_amount_and_units(
+                self.max_fee-self.fee) if self.max_fee > self.fee else ''
+            self.ids.total_fee.value = self.app.format_amount_and_units(
+                self.fee+self.parent_fee)
+            self.ids.total_feerate.value = self.app.format_fee_rate(
+                comb_feerate)
 
     def on_ok(self):
         fee = self.fee

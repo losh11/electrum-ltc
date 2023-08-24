@@ -37,12 +37,13 @@ def get_newly_added_servers(fname1, fname2=None):
 
 
 # testnet?
-#constants.set_testnet()
+# constants.set_testnet()
 config = SimpleConfig({'testnet': False})
 
 loop, stopping_fut, loop_thread = create_and_start_event_loop()
 network = Network(config)
 network.start()
+
 
 @log_exceptions
 async def f():
@@ -55,8 +56,10 @@ async def f():
         res_servers = {**old_servers_online, **newly_added_servers}
 
         print(json.dumps(res_servers, indent=4, sort_keys=True))
-        print(f"got reply from {len(old_servers_online)}/{len(old_servers_all)} old servers", file=sys.stderr)
-        print(f"len(newly_added_servers)={len(newly_added_servers)}. total: {len(res_servers)}", file=sys.stderr)
+        print(
+            f"got reply from {len(old_servers_online)}/{len(old_servers_all)} old servers", file=sys.stderr)
+        print(
+            f"len(newly_added_servers)={len(newly_added_servers)}. total: {len(res_servers)}", file=sys.stderr)
     finally:
         stopping_fut.set_result(1)
 

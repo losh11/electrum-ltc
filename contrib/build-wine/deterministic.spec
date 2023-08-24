@@ -2,13 +2,15 @@
 
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules, collect_dynamic_libs
 
-import sys, os
-
-cmdline_name = os.environ.get("ELECTRUM_CMDLINE_NAME")
-if not cmdline_name:
+import sys
+for i, x in enumerate(sys.argv):
+    if x == '--name':
+        cmdline_name = sys.argv[i+1]
+        break
+else:
     raise Exception('no name')
 
-home = 'C:\\electrum\\'
+home = 'C:\\electrum-ltc\\'
 
 # see https://github.com/pyinstaller/pyinstaller/issues/2005
 hiddenimports = []
@@ -22,7 +24,7 @@ hiddenimports += collect_submodules('ckcc')
 hiddenimports += collect_submodules('bitbox02')
 hiddenimports += ['electrum.plugins.jade.jade']
 hiddenimports += ['electrum.plugins.jade.jadepy.jade']
-hiddenimports += ['PyQt5.QtPrintSupport']  # needed by Revealer
+hiddenimports += ['_scrypt', 'PyQt5.QtPrintSupport']  # needed by Revealer
 
 
 binaries = []
@@ -59,6 +61,7 @@ a = Analysis([home+'run_electrum',
               home+'electrum/wallet.py',
               home+'electrum/simple_config.py',
               home+'electrum/bitcoin.py',
+              home+'electrum/blockchain.py',
               home+'electrum/dnssec.py',
               home+'electrum/commands.py',
               home+'electrum/plugins/cosigner_pool/qt.py',
@@ -124,7 +127,7 @@ exe_standalone = EXE(
     a.scripts,
     a.binaries,
     a.datas,
-    name=os.path.join('build\\pyi.win32\\electrum', cmdline_name + ".exe"),
+    name=os.path.join('build\\pyi.win32\\electrum-ltc', cmdline_name + ".exe"),
     debug=False,
     strip=None,
     upx=False,
@@ -137,7 +140,7 @@ exe_portable = EXE(
     a.scripts,
     a.binaries,
     a.datas + [('is_portable', 'README.md', 'DATA')],
-    name=os.path.join('build\\pyi.win32\\electrum', cmdline_name + "-portable.exe"),
+    name=os.path.join('build\\pyi.win32\\electrum-ltc', cmdline_name + "-portable.exe"),
     debug=False,
     strip=None,
     upx=False,
@@ -151,7 +154,7 @@ exe_inside_setup_noconsole = EXE(
     pyz,
     a.scripts,
     exclude_binaries=True,
-    name=os.path.join('build\\pyi.win32\\electrum', cmdline_name),
+    name=os.path.join('build\\pyi.win32\\electrum-ltc', cmdline_name),
     debug=False,
     strip=None,
     upx=False,
@@ -162,7 +165,7 @@ exe_inside_setup_console = EXE(
     pyz,
     a.scripts,
     exclude_binaries=True,
-    name=os.path.join('build\\pyi.win32\\electrum', cmdline_name+"-debug"),
+    name=os.path.join('build\\pyi.win32\\electrum-ltc', cmdline_name+"-debug"),
     debug=False,
     strip=None,
     upx=False,
@@ -180,4 +183,4 @@ coll = COLLECT(
     debug=False,
     icon=home+'electrum/gui/icons/electrum.ico',
     console=False,
-    name=os.path.join('dist', 'electrum'))
+    name=os.path.join('dist', 'electrum-ltc'))

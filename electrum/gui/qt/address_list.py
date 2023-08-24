@@ -78,7 +78,8 @@ class AddressList(MyTreeView):
         FIAT_BALANCE = 4
         NUM_TXS = 5
 
-    filter_columns = [Columns.TYPE, Columns.ADDRESS, Columns.LABEL, Columns.COIN_BALANCE]
+    filter_columns = [Columns.TYPE, Columns.ADDRESS,
+                      Columns.LABEL, Columns.COIN_BALANCE]
 
     ROLE_SORT_ORDER = Qt.UserRole + 1000
     ROLE_ADDRESS_STR = Qt.UserRole + 1001
@@ -151,23 +152,25 @@ class AddressList(MyTreeView):
     def update(self):
         if self.maybe_defer_update():
             return
-        current_address = self.get_role_data_for_current_item(col=0, role=self.ROLE_ADDRESS_STR)
+        current_address = self.get_role_data_for_current_item(
+            col=0, role=self.ROLE_ADDRESS_STR)
         if self.show_change == AddressTypeFilter.RECEIVING:
             addr_list = self.wallet.get_receiving_addresses()
         elif self.show_change == AddressTypeFilter.CHANGE:
             addr_list = self.wallet.get_change_addresses()
         else:
             addr_list = self.wallet.get_addresses()
-        self.proxy.setDynamicSortFilter(False)  # temp. disable re-sorting after every change
+        # temp. disable re-sorting after every change
+        self.proxy.setDynamicSortFilter(False)
         self.std_model.clear()
         self.refresh_headers()
         fx = self.parent.fx
         set_address = None
-        self.addresses_beyond_gap_limit = self.wallet.get_all_known_addresses_beyond_gap_limit()
+        addresses_beyond_gap_limit = self.wallet.get_all_known_addresses_beyond_gap_limit()
         for address in addr_list:
             c, u, x = self.wallet.get_addr_balance(address)
             balance = c + u + x
-            is_used_and_empty = self.wallet.adb.is_used(address) and balance == 0
+            is_used_and_empty = self.wallet.is_used(address) and balance == 0
             if self.show_used == AddressUsageStateFilter.UNUSED and (balance or is_used_and_empty):
                 continue
             if self.show_used == AddressUsageStateFilter.FUNDED and balance == 0:
@@ -184,20 +187,27 @@ class AddressList(MyTreeView):
                 if i not in (self.Columns.TYPE, self.Columns.LABEL):
                     item.setFont(QFont(MONOSPACE_FONT))
             self.set_editability(address_item)
-            address_item[self.Columns.FIAT_BALANCE].setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            address_item[self.Columns.FIAT_BALANCE].setTextAlignment(
+                Qt.AlignRight | Qt.AlignVCenter)
             # setup column 0
             if self.wallet.is_change(address):
                 address_item[self.Columns.TYPE].setText(_('change'))
-                address_item[self.Columns.TYPE].setBackground(ColorScheme.YELLOW.as_color(True))
+                address_item[self.Columns.TYPE].setBackground(
+                    ColorScheme.YELLOW.as_color(True))
             else:
                 address_item[self.Columns.TYPE].setText(_('receiving'))
-                address_item[self.Columns.TYPE].setBackground(ColorScheme.GREEN.as_color(True))
+                address_item[self.Columns.TYPE].setBackground(
+                    ColorScheme.GREEN.as_color(True))
             address_item[0].setData(address, self.ROLE_ADDRESS_STR)
             address_path = self.wallet.get_address_index(address)
-            address_item[self.Columns.TYPE].setData(address_path, self.ROLE_SORT_ORDER)
+            address_item[self.Columns.TYPE].setData(
+                address_path, self.ROLE_SORT_ORDER)
             address_path_str = self.wallet.get_address_path_str(address)
             if address_path_str is not None:
                 address_item[self.Columns.TYPE].setToolTip(address_path_str)
+            if address in addresses_beyond_gap_limit:
+                address_item[self.Columns.ADDRESS].setBackground(
+                    ColorScheme.RED.as_color(True))
             # add item
             count = self.std_model.rowCount()
             self.std_model.insertRow(count, address_item)
@@ -215,10 +225,9 @@ class AddressList(MyTreeView):
         self.proxy.setDynamicSortFilter(True)
 
     def refresh_row(self, key, row):
-        assert row is not None
         address = key
-        label = self.wallet.get_label_for_address(address)
-        num = self.wallet.adb.get_address_history_len(address)
+        label = self.wallet.get_label(address)
+        num = self.wallet.get_address_history_len(address)
         c, u, x = self.wallet.get_addr_balance(address)
         balance = c + u + x
         balance_text = self.parent.format_amount(balance, whitespaces=True)
@@ -232,13 +241,13 @@ class AddressList(MyTreeView):
         address_item = [self.std_model.item(row, col) for col in self.Columns]
         address_item[self.Columns.LABEL].setText(label)
         address_item[self.Columns.COIN_BALANCE].setText(balance_text)
-        address_item[self.Columns.COIN_BALANCE].setData(balance, self.ROLE_SORT_ORDER)
+        address_item[self.Columns.COIN_BALANCE].setData(
+            balance, self.ROLE_SORT_ORDER)
         address_item[self.Columns.FIAT_BALANCE].setText(fiat_balance_str)
-        address_item[self.Columns.NUM_TXS].setText("%d"%num)
-        c = ColorScheme.BLUE.as_color(True) if self.wallet.is_frozen_address(address) else self._default_bg_brush
+        address_item[self.Columns.NUM_TXS].setText("%d" % num)
+        c = ColorScheme.BLUE.as_color(True) if self.wallet.is_frozen_address(
+            address) else self._default_bg_brush
         address_item[self.Columns.ADDRESS].setBackground(c)
-        if address in self.addresses_beyond_gap_limit:
-            address_item[self.Columns.ADDRESS].setBackground(ColorScheme.RED.as_color(True))
 
     def create_menu(self, position):
         from electrum.wallet import Multisig_Wallet
@@ -258,37 +267,50 @@ class AddressList(MyTreeView):
             if not item:
                 return
             addr = addrs[0]
-            addr_column_title = self.std_model.horizontalHeaderItem(self.Columns.LABEL).text()
+            addr_column_title = self.std_model.horizontalHeaderItem(
+                self.Columns.LABEL).text()
             addr_idx = idx.sibling(idx.row(), self.Columns.LABEL)
             self.add_copy_menu(menu, idx)
-            menu.addAction(_('Details'), lambda: self.parent.show_address(addr))
+            menu.addAction(
+                _('Details'), lambda: self.parent.show_address(addr))
             persistent = QPersistentModelIndex(addr_idx)
-            menu.addAction(_("Edit {}").format(addr_column_title), lambda p=persistent: self.edit(QModelIndex(p)))
-            #menu.addAction(_("Request payment"), lambda: self.parent.receive_at(addr))
+            menu.addAction(_("Edit {}").format(addr_column_title),
+                           lambda p=persistent: self.edit(QModelIndex(p)))
+            # menu.addAction(_("Request payment"), lambda: self.parent.receive_at(addr))
             if self.wallet.can_export():
-                menu.addAction(_("Private key"), lambda: self.parent.show_private_key(addr))
+                menu.addAction(_("Private key"),
+                               lambda: self.parent.show_private_key(addr))
             if not is_multisig and not self.wallet.is_watching_only():
-                menu.addAction(_("Sign/verify message"), lambda: self.parent.sign_verify_message(addr))
-                menu.addAction(_("Encrypt/decrypt message"), lambda: self.parent.encrypt_message(addr))
+                menu.addAction(_("Sign/verify message"),
+                               lambda: self.parent.sign_verify_message(addr))
+                menu.addAction(_("Encrypt/decrypt message"),
+                               lambda: self.parent.encrypt_message(addr))
             if can_delete:
-                menu.addAction(_("Remove from wallet"), lambda: self.parent.remove_address(addr))
+                menu.addAction(_("Remove from wallet"),
+                               lambda: self.parent.remove_address(addr))
             addr_URL = block_explorer_URL(self.config, 'addr', addr)
             if addr_URL:
-                menu.addAction(_("View on block explorer"), lambda: webopen(addr_URL))
+                menu.addAction(_("View on block explorer"),
+                               lambda: webopen(addr_URL))
 
             if not self.wallet.is_frozen_address(addr):
-                menu.addAction(_("Freeze"), lambda: self.parent.set_frozen_state_of_addresses([addr], True))
+                menu.addAction(
+                    _("Freeze"), lambda: self.parent.set_frozen_state_of_addresses([addr], True))
             else:
-                menu.addAction(_("Unfreeze"), lambda: self.parent.set_frozen_state_of_addresses([addr], False))
+                menu.addAction(
+                    _("Unfreeze"), lambda: self.parent.set_frozen_state_of_addresses([addr], False))
 
         else:
             # multiple items selected
-            menu.addAction(_("Freeze"), lambda: self.parent.set_frozen_state_of_addresses(addrs, True))
-            menu.addAction(_("Unfreeze"), lambda: self.parent.set_frozen_state_of_addresses(addrs, False))
+            menu.addAction(
+                _("Freeze"), lambda: self.parent.set_frozen_state_of_addresses(addrs, True))
+            menu.addAction(
+                _("Unfreeze"), lambda: self.parent.set_frozen_state_of_addresses(addrs, False))
 
         coins = self.wallet.get_spendable_coins(addrs)
         if coins:
-            menu.addAction(_("Spend from"), lambda: self.parent.utxo_list.set_spend_list(coins))
+            menu.addAction(_("Spend from"),
+                           lambda: self.parent.utxo_list.set_spend_list(coins))
 
         run_hook('receive_menu', menu, addrs, self.wallet)
         menu.exec_(self.viewport().mapToGlobal(position))

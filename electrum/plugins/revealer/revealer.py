@@ -20,7 +20,7 @@ class VersionedSeed(NamedTuple):
         assert isinstance(seed, str) and len(seed) >= 32
         ret = version + seed
         ret = ret.upper()
-        return ' '.join(ret[i : i+4] for i in range(0, len(ret), 4))
+        return ' '.join(ret[i: i+4] for i in range(0, len(ret), 4))
 
 
 class RevealerPlugin(BasePlugin):
@@ -63,7 +63,7 @@ class RevealerPlugin(BasePlugin):
     def get_noise_map(cls, versioned_seed: VersionedSeed) -> Dict[Tuple[int, int], int]:
         """Returns a map from (x,y) coordinate to pixel value 0/1, to be used as rawnoise."""
         w, h = cls.SIZE
-        version  = versioned_seed.version
+        version = versioned_seed.version
         hex_seed = versioned_seed.seed
         checksum = versioned_seed.checksum
         noise_map = {}
@@ -76,7 +76,8 @@ class RevealerPlugin(BasePlugin):
             prng_seed = bfh(hex_seed + version + checksum)
             drbg = DRBG(prng_seed)
             num_noise_bytes = 1929  # ~ w*h
-            noise_array = bin(int.from_bytes(drbg.generate(num_noise_bytes), 'big'))[2:]
+            noise_array = bin(int.from_bytes(
+                drbg.generate(num_noise_bytes), 'big'))[2:]
             # there's an approx 1/1024 chance that the generated number is 'too small'
             # and we would get IndexError below. easiest backwards compat fix:
             noise_array += '0' * (w * h - len(noise_array))

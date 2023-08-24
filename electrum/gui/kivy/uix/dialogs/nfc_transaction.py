@@ -4,7 +4,7 @@ from kivy.factory import Factory
 
 class NFCTransactionDialog(Factory.AnimatedPopup):
 
-    mode = OptionProperty('send', options=('send','receive'))
+    mode = OptionProperty('send', options=('send', 'receive'))
 
     scanner = ObjectProperty(None)
 

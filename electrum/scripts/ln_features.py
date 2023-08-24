@@ -69,7 +69,7 @@ async def worker(work_queue: asyncio.Queue, results_queue: asyncio.Queue, flag):
         # only check non-onion addresses
         addr = None
         for a in work['addrs']:
-            if "onion" not in a[0]:
+            if not "onion" in a[0]:
                 addr = a
         if not addr:
             await results_queue.put(None)
@@ -154,7 +154,8 @@ async def node_flag_stats(opt_flag: LnFeatures, presync: False):
         for n, nv in nodes.items():
             addrs = wallet.lnworker.channel_db._addresses[n]
             await work_queue.put({'pk': n, 'addrs': addrs, 'features': nv.features})
-        tasks = [asyncio.create_task(worker(work_queue, results_queue, opt_flag)) for i in range(WORKERS)]
+        tasks = [asyncio.create_task(
+            worker(work_queue, results_queue, opt_flag)) for i in range(WORKERS)]
         try:
             await asyncio.gather(*tasks)
         except Exception as e:
@@ -170,7 +171,8 @@ async def node_flag_stats(opt_flag: LnFeatures, presync: False):
                 n_true += 1
             elif i is False:
                 n_false += 1
-        print(f"feature comparison - equal: {n_true} unequal: {n_false} total:{n_tot}")
+        print(
+            f"feature comparison - equal: {n_true} unequal: {n_false} total:{n_tot}")
 
     finally:
         stopping_fut.set_result(1)

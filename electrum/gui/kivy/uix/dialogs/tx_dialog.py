@@ -152,7 +152,8 @@ class TxDialog(Factory.Popup):
         self.tx_hash = tx_details.txid or ''
         if tx_mined_status.timestamp:
             self.date_label = _('Date')
-            self.date_str = datetime.fromtimestamp(tx_mined_status.timestamp).isoformat(' ')[:-3]
+            self.date_str = datetime.fromtimestamp(
+                tx_mined_status.timestamp).isoformat(' ')[:-3]
         elif exp_n is not None:
             self.date_label = _('Mempool depth')
             self.date_str = self.config.depth_tooltip(exp_n)
@@ -183,7 +184,8 @@ class TxDialog(Factory.Popup):
         self.ids.output_list.update(self.tx.outputs())
 
         for dict_entry in self.ids.output_list.data:
-            dict_entry['color'], dict_entry['background_color'] = address_colors(self.wallet, dict_entry['address'])
+            dict_entry['color'], dict_entry['background_color'] = address_colors(
+                self.wallet, dict_entry['address'])
 
         self.can_remove_tx = tx_details.can_remove
         self.update_action_dropdown()
@@ -192,12 +194,18 @@ class TxDialog(Factory.Popup):
         action_dropdown = self.ids.action_dropdown  # type: ActionDropdown
         # note: button texts need to be short; there is only horizontal space for ~13 chars
         options = (
-            ActionButtonOption(text=_('Sign'), func=lambda btn: self.do_sign(), enabled=self.can_sign),
-            ActionButtonOption(text=_('Broadcast'), func=lambda btn: self.do_broadcast(), enabled=self.can_broadcast),
-            ActionButtonOption(text=_('Bump fee'), func=lambda btn: self.do_rbf(), enabled=self.can_rbf),
-            ActionButtonOption(text=_('Child pays\nfor parent'), func=lambda btn: self.do_cpfp(), enabled=(not self.can_rbf and self.can_cpfp)),
-            ActionButtonOption(text=_('Cancel') + '\n(double-spend)', func=lambda btn: self.do_dscancel(), enabled=self.can_dscancel),
-            ActionButtonOption(text=_('Remove'), func=lambda btn: self.remove_local_tx(), enabled=self.can_remove_tx),
+            ActionButtonOption(
+                text=_('Sign'), func=lambda btn: self.do_sign(), enabled=self.can_sign),
+            ActionButtonOption(text=_(
+                'Broadcast'), func=lambda btn: self.do_broadcast(), enabled=self.can_broadcast),
+            ActionButtonOption(
+                text=_('Bump fee'), func=lambda btn: self.do_rbf(), enabled=self.can_rbf),
+            ActionButtonOption(text=_('Child pays\nfor parent'), func=lambda btn: self.do_cpfp(
+            ), enabled=(not self.can_rbf and self.can_cpfp)),
+            ActionButtonOption(text=_('Cancel') + '\n(double-spend)',
+                               func=lambda btn: self.do_dscancel(), enabled=self.can_dscancel),
+            ActionButtonOption(text=_(
+                'Remove'), func=lambda btn: self.remove_local_tx(), enabled=self.can_remove_tx),
         )
         action_dropdown.update(options=options)
 
@@ -261,12 +269,14 @@ class TxDialog(Factory.Popup):
         total_size = parent_tx.estimated_size() + new_tx.estimated_size()
         parent_txid = parent_tx.txid()
         assert parent_txid
-        parent_fee = self.wallet.adb.get_tx_fee(parent_txid)
+        parent_fee = self.wallet.get_tx_fee(parent_txid)
         if parent_fee is None:
-            self.app.show_error(_("Can't CPFP: unknown fee for parent transaction."))
+            self.app.show_error(
+                _("Can't CPFP: unknown fee for parent transaction."))
             return
         cb = partial(self._do_cpfp, parent_tx=parent_tx)
-        d = CPFPDialog(self.app, parent_fee, total_size, new_tx=new_tx, callback=cb)
+        d = CPFPDialog(self.app, parent_fee, total_size,
+                       new_tx=new_tx, callback=cb)
         d.open()
 
     def _do_cpfp(
@@ -279,7 +289,7 @@ class TxDialog(Factory.Popup):
         if fee is None:
             return  # fee left empty, treat is as "cancel"
         if fee > max_fee:
-            self.app.show_error(_('Max fee exceeded'))
+            self.show_error(_('Max fee exceeded'))
             return
         try:
             new_tx = self.wallet.cpfp(parent_tx, fee)
@@ -344,19 +354,20 @@ class TxDialog(Factory.Popup):
     def show_qr(self):
         original_raw_tx = str(self.tx)
         qr_data = self.tx.to_qr_data()
-        self.app.qr_dialog(_("Raw Transaction"), qr_data, text_for_clipboard=original_raw_tx)
+        self.app.qr_dialog(_("Raw Transaction"), qr_data,
+                           text_for_clipboard=original_raw_tx)
 
     def remove_local_tx(self):
         txid = self.tx.txid()
-        num_child_txs = len(self.wallet.adb.get_depending_transactions(txid))
+        num_child_txs = len(self.wallet.get_depending_transactions(txid))
         question = _("Are you sure you want to remove this transaction?")
         if num_child_txs > 0:
-            question = (
-                _("Are you sure you want to remove this transaction and {} child transactions?")
-                .format(num_child_txs))
+            question = (_("Are you sure you want to remove this transaction and {} child transactions?")
+                        .format(num_child_txs))
+
         def on_prompt(b):
             if b:
-                self.wallet.adb.remove_transaction(txid)
+                self.wallet.remove_transaction(txid)
                 self.wallet.save_db()
                 self.app._trigger_update_wallet()  # FIXME private...
                 self.dismiss()
@@ -367,6 +378,7 @@ class TxDialog(Factory.Popup):
         from .label_dialog import LabelDialog
         key = self.tx.txid()
         text = self.app.wallet.get_label_for_txid(key)
+
         def callback(text):
             self.app.wallet.set_label(key, text)
             self.update()

@@ -30,7 +30,8 @@ class LockTimeEdit(QWidget):
         self.locktime_raw_e = LockTimeRawEdit(self)
         self.locktime_height_e = LockTimeHeightEdit(self)
         self.locktime_date_e = LockTimeDateEdit(self)
-        self.editors = [self.locktime_raw_e, self.locktime_height_e, self.locktime_date_e]
+        self.editors = [self.locktime_raw_e,
+                        self.locktime_height_e, self.locktime_date_e]
 
         self.combo = QComboBox()
         options = [_("Raw"), _("Block height"), _("Date")]
@@ -142,7 +143,8 @@ class LockTimeHeightEdit(LockTimeRawEdit):
         textRect.adjust(2, 0, -10, 0)
         painter = QPainter(self)
         painter.setPen(ColorScheme.GRAY.as_color())
-        painter.drawText(textRect, int(Qt.AlignRight | Qt.AlignVCenter), "height")
+        painter.drawText(textRect, int(
+            Qt.AlignRight | Qt.AlignVCenter), "height")
 
 
 def get_max_allowed_timestamp() -> int:

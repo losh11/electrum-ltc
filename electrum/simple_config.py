@@ -14,7 +14,7 @@ from aiorpcx import NetAddress
 from . import util
 from . import constants
 from .util import base_units, base_unit_name_to_decimal_point, decimal_point_to_base_unit_name, UnknownBaseUnit, DECIMAL_POINT_DEFAULT
-from .util import format_satoshis, format_fee_satoshis, os_chmod
+from .util import format_satoshis, format_fee_satoshis
 from .util import user_dir, make_dir, NoDynamicFeeEstimates, quantize_feerate
 from .i18n import _
 from .logging import get_logger, Logger
@@ -26,9 +26,9 @@ FEE_DEPTH_TARGETS = [10_000_000, 5_000_000, 2_000_000, 1_000_000,
 FEE_LN_ETA_TARGET = 2  # note: make sure the network is asking for estimates for this target
 
 # satoshi per kbyte
-FEERATE_MAX_DYNAMIC = 1500000
+FEERATE_MAX_DYNAMIC = 1000000
 FEERATE_WARNING_HIGH_FEE = 600000
-FEERATE_FALLBACK_STATIC_FEE = 150000
+FEERATE_FALLBACK_STATIC_FEE = 100000
 FEERATE_DEFAULT_RELAY = 1000
 FEERATE_MAX_RELAY = 50000
 FEERATE_STATIC_VALUES = [1000, 2000, 5000, 10000, 20000, 30000,
@@ -230,7 +230,7 @@ class SimpleConfig(Logger):
         base_unit = self.user_config.get('base_unit')
         if isinstance(base_unit, str):
             self._set_key_in_user_config('base_unit', None)
-            map_ = {'btc':8, 'mbtc':5, 'ubtc':2, 'bits':2, 'sat':0}
+            map_ = {'ltc':8, 'mltc':5, 'ultc':2, 'bits':2, 'sat':0}
             decimal_point = map_.get(base_unit.lower())
             self._set_key_in_user_config('decimal_point', decimal_point)
 
@@ -271,7 +271,7 @@ class SimpleConfig(Logger):
         try:
             with open(path, "w", encoding='utf-8') as f:
                 f.write(s)
-            os_chmod(path, stat.S_IREAD | stat.S_IWRITE)
+            os.chmod(path, stat.S_IREAD | stat.S_IWRITE)
         except FileNotFoundError:
             # datadir probably deleted while running...
             if os.path.exists(self.path):  # or maybe not?
@@ -300,7 +300,7 @@ class SimpleConfig(Logger):
         new_path = self.get_fallback_wallet_path()
 
         # default path in pre 1.9 versions
-        old_path = os.path.join(self.path, "electrum.dat")
+        old_path = os.path.join(self.path, "electrum-ltc.dat")
         if os.path.exists(old_path) and not os.path.exists(new_path):
             os.rename(old_path, new_path)
 
@@ -557,7 +557,7 @@ class SimpleConfig(Logger):
             return self.has_fee_etas()
 
     def is_dynfee(self):
-        return bool(self.get('dynamic_fees', True))
+        return bool(self.get('dynamic_fees', False))
 
     def use_mempool_fees(self):
         return bool(self.get('mempool_fees', False))
@@ -707,7 +707,7 @@ class SimpleConfig(Logger):
 
 
 def read_user_config(path):
-    """Parse and store the user config settings in electrum.conf into user_config[]."""
+    """Parse and store the user config settings in electrum-ltc.conf into user_config[]."""
     if not path:
         return {}
     config_path = os.path.join(path, "config")
@@ -717,8 +717,8 @@ def read_user_config(path):
         with open(config_path, "r", encoding='utf-8') as f:
             data = f.read()
         result = json.loads(data)
-    except Exception as exc:
-        _logger.warning(f"Cannot read config file at {config_path}: {exc}")
+    except:
+        _logger.warning(f"Cannot read config file. {config_path}")
         return {}
     if not type(result) is dict:
         return {}

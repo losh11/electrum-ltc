@@ -33,8 +33,10 @@ class Plugin(DigitalBitboxPlugin, QtPluginBase):
             addr = addrs[0]
             if wallet.get_txin_type(addr) != 'p2pkh':
                 return
+
             def show_address():
-                keystore.thread.add(partial(self.show_address, wallet, addr, keystore))
+                keystore.thread.add(
+                    partial(self.show_address, wallet, addr, keystore))
 
             menu.addAction(_("Show on {}").format(self.device), show_address)
 

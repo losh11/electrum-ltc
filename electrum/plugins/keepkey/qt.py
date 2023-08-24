@@ -19,7 +19,7 @@ from ..hw_wallet.plugin import only_hook_if_libraries_available
 from .keepkey import KeepKeyPlugin, TIM_NEW, TIM_RECOVER, TIM_MNEMONIC
 
 
-PASSPHRASE_HELP_SHORT =_(
+PASSPHRASE_HELP_SHORT = _(
     "Passphrases allow you to access new wallets, each "
     "hidden behind a particular case-sensitive passphrase.")
 PASSPHRASE_HELP = PASSPHRASE_HELP_SHORT + "  " + _(
@@ -29,10 +29,10 @@ PASSPHRASE_HELP = PASSPHRASE_HELP_SHORT + "  " + _(
     "accessible behind its own passphrase.")
 RECOMMEND_PIN = _(
     "You should enable PIN protection.  Your PIN is the only protection "
-    "for your bitcoins if your device is lost or stolen.")
+    "for your litecoins if your device is lost or stolen.")
 PASSPHRASE_NOT_PIN = _(
     "If you forget a passphrase you will be unable to access any "
-    "bitcoins in the wallet behind it.  A passphrase is not a PIN. "
+    "litecoins in the wallet behind it.  A passphrase is not a PIN. "
     "Only change this if you are sure you understand it.")
 CHARACTER_RECOVERY = (
     "Use the recovery cipher shown on your device to input your seed words.  "
@@ -43,6 +43,7 @@ CHARACTER_RECOVERY = (
     "Press BACKSPACE to go back a character or word.\n"
     "Press ENTER or the Seed Entered button once the last word in your "
     "seed is auto-completed.")
+
 
 class CharacterButton(QPushButton):
     def __init__(self, text=None):
@@ -189,7 +190,6 @@ class QtHandler(QtHandlerBase):
         self.done.set()
 
 
-
 class QtPlugin(QtPluginBase):
     # Derived classes must provide the following class-static variables:
     #   icon_file
@@ -203,14 +203,17 @@ class QtPlugin(QtPluginBase):
         for keystore in wallet.get_keystores():
             if type(keystore) == self.keystore_class:
                 def show_address():
-                    keystore.thread.add(partial(self.show_address, wallet, addrs[0], keystore))
+                    keystore.thread.add(
+                        partial(self.show_address, wallet, addrs[0], keystore))
                 device_name = "{} ({})".format(self.device, keystore.label)
-                menu.addAction(_("Show on {}").format(device_name), show_address)
+                menu.addAction(_("Show on {}").format(
+                    device_name), show_address)
 
     def show_settings_dialog(self, window, keystore):
         def connect():
             device_id = self.choose_device(window, keystore)
             return device_id
+
         def show_dialog(device_id):
             if device_id:
                 SettingsDialog(window, self, keystore, device_id).exec_()
@@ -256,6 +259,7 @@ class QtPlugin(QtPluginBase):
                 msg = _("Enter your BIP39 mnemonic:")
             else:
                 msg = _("Enter the master private key beginning with xprv:")
+
                 def set_enabled():
                     from electrum.bip32 import is_xprv
                     wizard.next_button.setEnabled(is_xprv(clean_text(text)))
@@ -410,7 +414,7 @@ class SettingsDialog(WindowModalDialog):
             if wallet and sum(wallet.get_balance()):
                 title = _("Confirm Device Wipe")
                 msg = _("Are you SURE you want to wipe the device?\n"
-                        "Your wallet still has bitcoins in it!")
+                        "Your wallet still has litecoins in it!")
                 if not self.question(msg, title=title,
                                      icon=QMessageBox.Critical):
                     return
@@ -485,7 +489,7 @@ class SettingsDialog(WindowModalDialog):
         settings_glayout.addWidget(pin_button, 2, 1)
         pin_msg = QLabel(_("PIN protection is strongly recommended.  "
                            "A PIN is your only protection against someone "
-                           "stealing your bitcoins if they obtain physical "
+                           "stealing your litecoins if they obtain physical "
                            "access to your {}.").format(plugin.device))
         pin_msg.setWordWrap(True)
         pin_msg.setStyleSheet("color: red")
@@ -527,7 +531,7 @@ class SettingsDialog(WindowModalDialog):
         clear_pin_button.clicked.connect(clear_pin)
         clear_pin_warning = QLabel(
             _("If you disable your PIN, anyone with physical access to your "
-              "{} device can spend your bitcoins.").format(plugin.device))
+              "{} device can spend your litecoins.").format(plugin.device))
         clear_pin_warning.setWordWrap(True)
         clear_pin_warning.setStyleSheet("color: red")
         advanced_glayout.addWidget(clear_pin_button, 0, 2)
@@ -552,7 +556,7 @@ class SettingsDialog(WindowModalDialog):
         wipe_device_msg.setWordWrap(True)
         wipe_device_warning = QLabel(
             _("Only wipe a device if you have the recovery seed written down "
-              "and the device wallet(s) are empty, otherwise the bitcoins "
+              "and the device wallet(s) are empty, otherwise the litecoins "
               "will be lost forever."))
         wipe_device_warning.setWordWrap(True)
         wipe_device_warning.setStyleSheet("color: red")

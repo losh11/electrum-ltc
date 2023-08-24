@@ -8,9 +8,11 @@ from electrum.json_db import StoredDict
 
 from . import ElectrumTestCase
 
+
 class H(NamedTuple):
-    owner : str
-    htlc_id : int
+    owner: str
+    htlc_id: int
+
 
 class TestHTLCManager(ElectrumTestCase):
     def test_adding_htlcs_race(self):
@@ -38,26 +40,36 @@ class TestHTLCManager(ElectrumTestCase):
         A.recv_rev()
         A.send_rev()
         B.recv_rev()
-        self.assertEqual(B.get_htlcs_in_oldest_unrevoked_ctx(LOCAL), [(RECEIVED, ah0)])
-        self.assertEqual(A.get_htlcs_in_oldest_unrevoked_ctx(LOCAL), [(RECEIVED, bh0)])
+        self.assertEqual(B.get_htlcs_in_oldest_unrevoked_ctx(
+            LOCAL), [(RECEIVED, ah0)])
+        self.assertEqual(A.get_htlcs_in_oldest_unrevoked_ctx(
+            LOCAL), [(RECEIVED, bh0)])
         self.assertEqual(B.get_htlcs_in_latest_ctx(LOCAL), [(RECEIVED, ah0)])
         self.assertEqual(A.get_htlcs_in_latest_ctx(LOCAL), [(RECEIVED, bh0)])
         A.send_ctx()
         B.recv_ctx()
         B.send_ctx()
         A.recv_ctx()
-        self.assertEqual(B.get_htlcs_in_oldest_unrevoked_ctx(LOCAL), [(RECEIVED, ah0)])
-        self.assertEqual(A.get_htlcs_in_oldest_unrevoked_ctx(LOCAL), [(RECEIVED, bh0)])
-        self.assertEqual(B.get_htlcs_in_latest_ctx(LOCAL), [(RECEIVED, ah0), (SENT, bh0)][::-1])
-        self.assertEqual(A.get_htlcs_in_latest_ctx(LOCAL), [(RECEIVED, bh0), (SENT, ah0)][::-1])
+        self.assertEqual(B.get_htlcs_in_oldest_unrevoked_ctx(
+            LOCAL), [(RECEIVED, ah0)])
+        self.assertEqual(A.get_htlcs_in_oldest_unrevoked_ctx(
+            LOCAL), [(RECEIVED, bh0)])
+        self.assertEqual(B.get_htlcs_in_latest_ctx(LOCAL), [
+                         (RECEIVED, ah0), (SENT, bh0)][::-1])
+        self.assertEqual(A.get_htlcs_in_latest_ctx(LOCAL), [
+                         (RECEIVED, bh0), (SENT, ah0)][::-1])
         B.send_rev()
         A.recv_rev()
         A.send_rev()
         B.recv_rev()
-        self.assertEqual(B.get_htlcs_in_oldest_unrevoked_ctx(LOCAL), [(RECEIVED, ah0), (SENT, bh0)][::-1])
-        self.assertEqual(A.get_htlcs_in_oldest_unrevoked_ctx(LOCAL), [(RECEIVED, bh0), (SENT, ah0)][::-1])
-        self.assertEqual(B.get_htlcs_in_latest_ctx(LOCAL), [(RECEIVED, ah0), (SENT, bh0)][::-1])
-        self.assertEqual(A.get_htlcs_in_latest_ctx(LOCAL), [(RECEIVED, bh0), (SENT, ah0)][::-1])
+        self.assertEqual(B.get_htlcs_in_oldest_unrevoked_ctx(
+            LOCAL), [(RECEIVED, ah0), (SENT, bh0)][::-1])
+        self.assertEqual(A.get_htlcs_in_oldest_unrevoked_ctx(
+            LOCAL), [(RECEIVED, bh0), (SENT, ah0)][::-1])
+        self.assertEqual(B.get_htlcs_in_latest_ctx(LOCAL), [
+                         (RECEIVED, ah0), (SENT, bh0)][::-1])
+        self.assertEqual(A.get_htlcs_in_latest_ctx(LOCAL), [
+                         (RECEIVED, bh0), (SENT, ah0)][::-1])
 
     def test_single_htlc_full_lifecycle(self):
         def htlc_lifecycle(htlc_success: bool):
@@ -86,18 +98,20 @@ class TestHTLCManager(ElectrumTestCase):
             else:
                 B.send_fail(0)
                 A.recv_fail(0)
-            self.assertEqual(list(A.htlcs_by_direction(REMOTE, RECEIVED).values()), [H('A', 0)])
+            self.assertEqual(list(A.htlcs_by_direction(
+                REMOTE, RECEIVED).values()), [H('A', 0)])
             self.assertNotEqual(A.get_htlcs_in_latest_ctx(LOCAL), [])
             self.assertNotEqual(B.get_htlcs_in_latest_ctx(REMOTE), [])
 
             self.assertEqual(A.get_htlcs_in_next_ctx(LOCAL), [])
             self.assertNotEqual(A.get_htlcs_in_next_ctx(REMOTE), [])
-            self.assertEqual(A.get_htlcs_in_next_ctx(REMOTE), A.get_htlcs_in_latest_ctx(REMOTE))
+            self.assertEqual(A.get_htlcs_in_next_ctx(REMOTE),
+                             A.get_htlcs_in_latest_ctx(REMOTE))
 
             self.assertEqual(B.get_htlcs_in_next_ctx(REMOTE), [])
             B.send_ctx()
             A.recv_ctx()
-            A.send_rev() # here pending_htlcs(REMOTE) should become empty
+            A.send_rev()  # here pending_htlcs(REMOTE) should become empty
             self.assertEqual(A.get_htlcs_in_next_ctx(REMOTE), [])
 
             B.recv_rev()
@@ -109,7 +123,8 @@ class TestHTLCManager(ElectrumTestCase):
             self.assertEqual(A.get_htlcs_in_latest_ctx(LOCAL), [])
             self.assertEqual(A.get_htlcs_in_latest_ctx(REMOTE), [])
             self.assertEqual(B.get_htlcs_in_latest_ctx(REMOTE), [])
-            self.assertEqual(len(A.all_settled_htlcs_ever(LOCAL)), int(htlc_success))
+            self.assertEqual(
+                len(A.all_settled_htlcs_ever(LOCAL)), int(htlc_success))
             self.assertEqual(len(A.sent_in_ctn(2)), int(htlc_success))
             self.assertEqual(len(B.received_in_ctn(2)), int(htlc_success))
 
@@ -124,10 +139,14 @@ class TestHTLCManager(ElectrumTestCase):
             A.send_rev()
             B.recv_rev()
 
-            self.assertNotEqual(A.get_htlcs_in_next_ctx(REMOTE), A.get_htlcs_in_latest_ctx(REMOTE))
-            self.assertEqual(A.get_htlcs_in_next_ctx(LOCAL), A.get_htlcs_in_latest_ctx(LOCAL))
-            self.assertEqual(B.get_htlcs_in_next_ctx(REMOTE), B.get_htlcs_in_latest_ctx(REMOTE))
-            self.assertNotEqual(B.get_htlcs_in_next_ctx(LOCAL), B.get_htlcs_in_next_ctx(REMOTE))
+            self.assertNotEqual(A.get_htlcs_in_next_ctx(
+                REMOTE), A.get_htlcs_in_latest_ctx(REMOTE))
+            self.assertEqual(A.get_htlcs_in_next_ctx(LOCAL),
+                             A.get_htlcs_in_latest_ctx(LOCAL))
+            self.assertEqual(B.get_htlcs_in_next_ctx(REMOTE),
+                             B.get_htlcs_in_latest_ctx(REMOTE))
+            self.assertNotEqual(B.get_htlcs_in_next_ctx(
+                LOCAL), B.get_htlcs_in_next_ctx(REMOTE))
 
         htlc_lifecycle(htlc_success=True)
         htlc_lifecycle(htlc_success=False)
@@ -151,19 +170,24 @@ class TestHTLCManager(ElectrumTestCase):
                 B.send_fail(0)
                 A.recv_fail(0)
             self.assertEqual([], A.get_htlcs_in_oldest_unrevoked_ctx(LOCAL))
-            self.assertEqual([(Direction.RECEIVED, ah0)], A.get_htlcs_in_oldest_unrevoked_ctx(REMOTE))
+            self.assertEqual([(Direction.RECEIVED, ah0)],
+                             A.get_htlcs_in_oldest_unrevoked_ctx(REMOTE))
             self.assertEqual([], A.get_htlcs_in_latest_ctx(LOCAL))
-            self.assertEqual([(Direction.RECEIVED, ah0)], A.get_htlcs_in_latest_ctx(REMOTE))
+            self.assertEqual([(Direction.RECEIVED, ah0)],
+                             A.get_htlcs_in_latest_ctx(REMOTE))
             self.assertEqual([], A.get_htlcs_in_next_ctx(LOCAL))
-            self.assertEqual([(Direction.RECEIVED, ah0)], A.get_htlcs_in_next_ctx(REMOTE))
+            self.assertEqual([(Direction.RECEIVED, ah0)],
+                             A.get_htlcs_in_next_ctx(REMOTE))
             B.send_ctx()
             A.recv_ctx()
             A.send_rev()
             B.recv_rev()
             self.assertEqual([], A.get_htlcs_in_oldest_unrevoked_ctx(LOCAL))
-            self.assertEqual([(Direction.RECEIVED, ah0)], A.get_htlcs_in_oldest_unrevoked_ctx(REMOTE))
+            self.assertEqual([(Direction.RECEIVED, ah0)],
+                             A.get_htlcs_in_oldest_unrevoked_ctx(REMOTE))
             self.assertEqual([], A.get_htlcs_in_latest_ctx(LOCAL))
-            self.assertEqual([(Direction.RECEIVED, ah0)], A.get_htlcs_in_latest_ctx(REMOTE))
+            self.assertEqual([(Direction.RECEIVED, ah0)],
+                             A.get_htlcs_in_latest_ctx(REMOTE))
             self.assertEqual([], A.get_htlcs_in_next_ctx(LOCAL))
             self.assertEqual([], A.get_htlcs_in_next_ctx(REMOTE))
 
@@ -183,38 +207,54 @@ class TestHTLCManager(ElectrumTestCase):
         self.assertEqual([], A.get_htlcs_in_latest_ctx(LOCAL))
         self.assertEqual([], A.get_htlcs_in_latest_ctx(REMOTE))
         self.assertEqual([], A.get_htlcs_in_next_ctx(LOCAL))
-        self.assertEqual([(Direction.RECEIVED, ah0)], A.get_htlcs_in_next_ctx(REMOTE))
+        self.assertEqual([(Direction.RECEIVED, ah0)],
+                         A.get_htlcs_in_next_ctx(REMOTE))
         A.recv_rev()
         self.assertEqual([], A.get_htlcs_in_latest_ctx(LOCAL))
         self.assertEqual([], A.get_htlcs_in_latest_ctx(REMOTE))
         self.assertEqual([], A.get_htlcs_in_next_ctx(LOCAL))
-        self.assertEqual([(Direction.RECEIVED, ah0)], A.get_htlcs_in_next_ctx(REMOTE))
+        self.assertEqual([(Direction.RECEIVED, ah0)],
+                         A.get_htlcs_in_next_ctx(REMOTE))
         A.send_ctx()
         B.recv_ctx()
         self.assertEqual([], A.get_htlcs_in_latest_ctx(LOCAL))
-        self.assertEqual([(Direction.RECEIVED, ah0)], A.get_htlcs_in_latest_ctx(REMOTE))
+        self.assertEqual([(Direction.RECEIVED, ah0)],
+                         A.get_htlcs_in_latest_ctx(REMOTE))
         self.assertEqual([], A.get_htlcs_in_next_ctx(LOCAL))
-        self.assertEqual([(Direction.RECEIVED, ah0)], A.get_htlcs_in_next_ctx(REMOTE))
+        self.assertEqual([(Direction.RECEIVED, ah0)],
+                         A.get_htlcs_in_next_ctx(REMOTE))
         B.send_rev()
         A.recv_rev()
         self.assertEqual([], A.get_htlcs_in_latest_ctx(LOCAL))
-        self.assertEqual([(Direction.RECEIVED, ah0)], A.get_htlcs_in_latest_ctx(REMOTE))
-        self.assertEqual([(Direction.SENT, ah0)], A.get_htlcs_in_next_ctx(LOCAL))
-        self.assertEqual([(Direction.RECEIVED, ah0)], A.get_htlcs_in_next_ctx(REMOTE))
+        self.assertEqual([(Direction.RECEIVED, ah0)],
+                         A.get_htlcs_in_latest_ctx(REMOTE))
+        self.assertEqual([(Direction.SENT, ah0)],
+                         A.get_htlcs_in_next_ctx(LOCAL))
+        self.assertEqual([(Direction.RECEIVED, ah0)],
+                         A.get_htlcs_in_next_ctx(REMOTE))
         B.send_ctx()
         A.recv_ctx()
         self.assertEqual([], A.get_htlcs_in_oldest_unrevoked_ctx(LOCAL))
-        self.assertEqual([(Direction.SENT, ah0)], A.get_htlcs_in_latest_ctx(LOCAL))
-        self.assertEqual([(Direction.RECEIVED, ah0)], A.get_htlcs_in_latest_ctx(REMOTE))
-        self.assertEqual([(Direction.SENT, ah0)], A.get_htlcs_in_next_ctx(LOCAL))
-        self.assertEqual([(Direction.RECEIVED, ah0)], A.get_htlcs_in_next_ctx(REMOTE))
+        self.assertEqual([(Direction.SENT, ah0)],
+                         A.get_htlcs_in_latest_ctx(LOCAL))
+        self.assertEqual([(Direction.RECEIVED, ah0)],
+                         A.get_htlcs_in_latest_ctx(REMOTE))
+        self.assertEqual([(Direction.SENT, ah0)],
+                         A.get_htlcs_in_next_ctx(LOCAL))
+        self.assertEqual([(Direction.RECEIVED, ah0)],
+                         A.get_htlcs_in_next_ctx(REMOTE))
         A.send_rev()
         B.recv_rev()
-        self.assertEqual([(Direction.SENT, ah0)], A.get_htlcs_in_oldest_unrevoked_ctx(LOCAL))
-        self.assertEqual([(Direction.SENT, ah0)], A.get_htlcs_in_latest_ctx(LOCAL))
-        self.assertEqual([(Direction.RECEIVED, ah0)], A.get_htlcs_in_latest_ctx(REMOTE))
-        self.assertEqual([(Direction.SENT, ah0)], A.get_htlcs_in_next_ctx(LOCAL))
-        self.assertEqual([(Direction.RECEIVED, ah0)], A.get_htlcs_in_next_ctx(REMOTE))
+        self.assertEqual([(Direction.SENT, ah0)],
+                         A.get_htlcs_in_oldest_unrevoked_ctx(LOCAL))
+        self.assertEqual([(Direction.SENT, ah0)],
+                         A.get_htlcs_in_latest_ctx(LOCAL))
+        self.assertEqual([(Direction.RECEIVED, ah0)],
+                         A.get_htlcs_in_latest_ctx(REMOTE))
+        self.assertEqual([(Direction.SENT, ah0)],
+                         A.get_htlcs_in_next_ctx(LOCAL))
+        self.assertEqual([(Direction.RECEIVED, ah0)],
+                         A.get_htlcs_in_next_ctx(REMOTE))
 
     def test_unacked_local_updates(self):
         A = HTLCManager(StoredDict({}, None, []))
@@ -231,17 +271,20 @@ class TestHTLCManager(ElectrumTestCase):
         ah1 = H('A', 1)
         B.recv_htlc(A.send_htlc(ah1))
         A.store_local_update_raw_msg(b"upd_msg1", is_commitment_signed=False)
-        self.assertEqual({1: [b"upd_msg0", b"upd_msg1"]}, A.get_unacked_local_updates())
+        self.assertEqual({1: [b"upd_msg0", b"upd_msg1"]},
+                         A.get_unacked_local_updates())
 
         A.send_ctx()
         B.recv_ctx()
         A.store_local_update_raw_msg(b"ctx1", is_commitment_signed=True)
-        self.assertEqual({1: [b"upd_msg0", b"upd_msg1", b"ctx1"]}, A.get_unacked_local_updates())
+        self.assertEqual(
+            {1: [b"upd_msg0", b"upd_msg1", b"ctx1"]}, A.get_unacked_local_updates())
 
         ah2 = H('A', 2)
         B.recv_htlc(A.send_htlc(ah2))
         A.store_local_update_raw_msg(b"upd_msg2", is_commitment_signed=False)
-        self.assertEqual({1: [b"upd_msg0", b"upd_msg1", b"ctx1"], 2: [b"upd_msg2"]}, A.get_unacked_local_updates())
+        self.assertEqual({1: [b"upd_msg0", b"upd_msg1", b"ctx1"], 2: [
+                         b"upd_msg2"]}, A.get_unacked_local_updates())
 
         B.send_rev()
         A.recv_rev()

@@ -8,7 +8,8 @@ import sys
 try:
     import requests
 except ImportError as e:
-    sys.exit(f"Error: {str(e)}. Try 'sudo python3 -m pip install <module-name>'")
+    sys.exit(
+        f"Error: {str(e)}. Try 'sudo python3 -m pip install <module-name>'")
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 os.chdir('..')
@@ -37,7 +38,8 @@ locale_file_name = 'locale/messages.pot'
 
 # Download & unzip
 print('Download translations')
-s = requests.request('GET', 'https://crowdin.com/backend/download/project/' + crowdin_identifier + '.zip').content
+s = requests.request('GET', 'https://crowdin.com/backend/download/project/' +
+                     crowdin_identifier + '.zip').content
 zfobj = zipfile.ZipFile(io.BytesIO(s))
 
 print('Unzip translations')
@@ -60,6 +62,7 @@ for lang in os.listdir('locale'):
     mo_dir = 'locale/%s/LC_MESSAGES' % lang
     if not os.path.exists(mo_dir):
         os.mkdir(mo_dir)
-    cmd = 'msgfmt --output-file="%s/electrum.mo" "locale/%s/electrum.po"' % (mo_dir,lang)
+    cmd = 'msgfmt --output-file="%s/electrum.mo" "locale/%s/electrum.po"' % (
+        mo_dir, lang)
     print('Installing', lang)
     os.system(cmd)

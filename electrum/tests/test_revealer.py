@@ -6,7 +6,8 @@ from . import ElectrumTestCase
 class TestRevealer(ElectrumTestCase):
 
     def test_version_0_noisemap(self):
-        versioned_seed = RevealerPlugin.get_versioned_seed_from_user_input('03b0c557d6d0d4308a3393851d78bd8c7861')
+        versioned_seed = RevealerPlugin.get_versioned_seed_from_user_input(
+            '03b0c557d6d0d4308a3393851d78bd8c7861')
         noise_map = RevealerPlugin.get_noise_map(versioned_seed)
         bigint = 0
         for (x, y), pixel in noise_map.items():
@@ -16,7 +17,8 @@ class TestRevealer(ElectrumTestCase):
                          bigint)
 
     def test_version_1_noisemap(self):
-        versioned_seed = RevealerPlugin.get_versioned_seed_from_user_input('125Df05b7ccf079ce2978Ae18e99219868cd')
+        versioned_seed = RevealerPlugin.get_versioned_seed_from_user_input(
+            '125Df05b7ccf079ce2978Ae18e99219868cd')
         noise_map = RevealerPlugin.get_noise_map(versioned_seed)
         bigint = 0
         for (x, y), pixel in noise_map.items():
@@ -26,7 +28,8 @@ class TestRevealer(ElectrumTestCase):
                          bigint)
 
     def test_version_1_noisemap_indexerror(self):
-        versioned_seed = RevealerPlugin.get_versioned_seed_from_user_input('1A082CBDC627FFA37ABD154A64AD2565D725')
+        versioned_seed = RevealerPlugin.get_versioned_seed_from_user_input(
+            '1A082CBDC627FFA37ABD154A64AD2565D725')
         noise_map = RevealerPlugin.get_noise_map(versioned_seed)
         bigint = 0
         for (x, y), pixel in noise_map.items():

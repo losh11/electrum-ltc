@@ -44,7 +44,6 @@ if TYPE_CHECKING:
     from .main_window import ElectrumWindow
 
 
-
 class TxEditor:
 
     def __init__(self, *, window: 'ElectrumWindow', make_tx,
@@ -66,9 +65,6 @@ class TxEditor:
             self.update_tx()
             self.update()
             self.needs_update = False
-
-    def stop_editor_updates(self):
-        self.main_window.gui_object.timer.timeout.disconnect(self.timer_actions)
 
     def fee_slider_callback(self, dyn, pos, fee_rate):
         if dyn:
@@ -125,14 +121,13 @@ class TxEditor:
             return True
 
 
-
-
 class ConfirmTxDialog(TxEditor, WindowModalDialog):
     # set fee and return password (after pw check)
 
     def __init__(self, *, window: 'ElectrumWindow', make_tx, output_value: Union[int, str], is_sweep: bool):
 
-        TxEditor.__init__(self, window=window, make_tx=make_tx, output_value=output_value, is_sweep=is_sweep)
+        TxEditor.__init__(self, window=window, make_tx=make_tx,
+                          output_value=output_value, is_sweep=is_sweep)
         WindowModalDialog.__init__(self, window, _("Confirm Transaction"))
         vbox = QVBoxLayout()
         self.setLayout(vbox)
@@ -146,9 +141,9 @@ class ConfirmTxDialog(TxEditor, WindowModalDialog):
         grid.addWidget(HelpLabel(_("Amount to be sent") + ": ", msg), 0, 0)
         grid.addWidget(self.amount_label, 0, 1)
 
-        msg = _('Bitcoin transactions are in general not free. A transaction fee is paid by the sender of the funds.') + '\n\n'\
-              + _('The amount of fee can be decided freely by the sender. However, transactions with low fees take more time to be processed.') + '\n\n'\
-              + _('A suggested fee is automatically added to this field. You may override it. The suggested fee increases with the size of the transaction.')
+        msg = _('Litecoin transactions are in general not free. A transaction fee is paid by the sender of the funds.') + '\n\n'\
+            + _('The amount of fee can be decided freely by the sender. However, transactions with low fees take more time to be processed.') + '\n\n'\
+            + _('A suggested fee is automatically added to this field. You may override it. The suggested fee increases with the size of the transaction.')
         self.fee_label = QLabel('')
         self.fee_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         grid.addWidget(HelpLabel(_("Mining fee") + ": ", msg), 1, 0)
@@ -162,9 +157,11 @@ class ConfirmTxDialog(TxEditor, WindowModalDialog):
         grid.addWidget(self.extra_fee_label, 2, 0)
         grid.addWidget(self.extra_fee_value, 2, 1)
 
-        self.fee_slider = FeeSlider(self, self.config, self.fee_slider_callback)
+        self.fee_slider = FeeSlider(
+            self, self.config, self.fee_slider_callback)
         self.fee_combo = FeeComboBox(self.fee_slider)
-        grid.addWidget(HelpLabel(_("Fee rate") + ": ", self.fee_combo.help_msg), 5, 0)
+        grid.addWidget(HelpLabel(_("Fee rate") + ": ",
+                       self.fee_combo.help_msg), 5, 0)
         grid.addWidget(self.fee_slider, 5, 1)
         grid.addWidget(self.fee_combo, 5, 2)
 
@@ -183,7 +180,8 @@ class ConfirmTxDialog(TxEditor, WindowModalDialog):
         self.send_button.clicked.connect(self.on_send)
         self.send_button.setDefault(True)
         vbox.addLayout(Buttons(CancelButton(self), self.send_button))
-        BlockingWaitingDialog(window, _("Preparing transaction..."), self.update_tx)
+        BlockingWaitingDialog(
+            window, _("Preparing transaction..."), self.update_tx)
         self.update()
         self.is_send = False
 
@@ -196,7 +194,6 @@ class ConfirmTxDialog(TxEditor, WindowModalDialog):
     def run(self):
         cancelled = not self.exec_()
         password = self.pw.text() or None
-        self.stop_editor_updates()
         self.deleteLater()  # see #3956
         return cancelled, self.is_send, password, self.tx
 
@@ -204,7 +201,8 @@ class ConfirmTxDialog(TxEditor, WindowModalDialog):
         password = self.pw.text() or None
         if self.password_required:
             if password is None:
-                self.main_window.show_error(_("Password required"), parent=self)
+                self.main_window.show_error(
+                    _("Password required"), parent=self)
                 return
             try:
                 self.wallet.check_password(password)
@@ -242,7 +240,7 @@ class ConfirmTxDialog(TxEditor, WindowModalDialog):
         self._update_amount_label()
 
         if self.not_enough_funds:
-            text = self.main_window.send_tab.get_text_not_enough_funds_mentioning_frozen()
+            text = self.main_window.get_text_not_enough_funds_mentioning_frozen()
             self.toggle_send_button(False, message=text)
             return
 
@@ -257,7 +255,8 @@ class ConfirmTxDialog(TxEditor, WindowModalDialog):
             x_fee_address, x_fee_amount = x_fee
             self.extra_fee_label.setVisible(True)
             self.extra_fee_value.setVisible(True)
-            self.extra_fee_value.setText(self.main_window.format_amount_and_units(x_fee_amount))
+            self.extra_fee_value.setText(
+                self.main_window.format_amount_and_units(x_fee_amount))
 
         amount = tx.output_value() if self.output_value == '!' else self.output_value
         tx_size = tx.estimated_size()

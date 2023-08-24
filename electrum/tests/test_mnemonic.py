@@ -102,21 +102,27 @@ class Test_NewMnemonic(ElectrumTestCase):
 
     def test_mnemonic_to_seed_basic(self):
         # note: not a valid electrum seed
-        seed = mnemonic.Mnemonic.mnemonic_to_seed(mnemonic='foobar', passphrase='none')
+        seed = mnemonic.Mnemonic.mnemonic_to_seed(
+            mnemonic='foobar', passphrase='none')
         self.assertEqual('741b72fd15effece6bfe5a26a52184f66811bd2be363190e07a42cca442b1a5bb22b3ad0eb338197287e6d314866c7fba863ac65d3f156087a5052ebc7157fce',
                          bh2u(seed))
 
     def test_mnemonic_to_seed(self):
         for test_name, test in SEED_TEST_CASES.items():
             if test.words_hex is not None:
-                self.assertEqual(test.words_hex, bh2u(test.words.encode('utf8')), msg=test_name)
-            self.assertTrue(is_new_seed(test.words, prefix=test.seed_version), msg=test_name)
+                self.assertEqual(test.words_hex, bh2u(
+                    test.words.encode('utf8')), msg=test_name)
+            self.assertTrue(is_new_seed(
+                test.words, prefix=test.seed_version), msg=test_name)
             m = mnemonic.Mnemonic(lang=test.lang)
             if test.entropy is not None:
-                self.assertEqual(test.entropy, m.mnemonic_decode(test.words), msg=test_name)
+                self.assertEqual(test.entropy, m.mnemonic_decode(
+                    test.words), msg=test_name)
             if test.passphrase_hex is not None:
-                self.assertEqual(test.passphrase_hex, bh2u(test.passphrase.encode('utf8')), msg=test_name)
-            seed = mnemonic.Mnemonic.mnemonic_to_seed(mnemonic=test.words, passphrase=test.passphrase)
+                self.assertEqual(test.passphrase_hex, bh2u(
+                    test.passphrase.encode('utf8')), msg=test_name)
+            seed = mnemonic.Mnemonic.mnemonic_to_seed(
+                mnemonic=test.words, passphrase=test.passphrase)
             self.assertEqual(test.bip32_seed, bh2u(seed), msg=test_name)
 
     def test_random_seeds(self):
@@ -142,7 +148,8 @@ class Test_BIP39Checksum(ElectrumTestCase):
 
     def test(self):
         mnemonic = u'gravity machine north sort system female filter attitude volume fold club stay feature office ecology stable narrow fog'
-        is_checksum_valid, is_wordlist_valid = keystore.bip39_is_checksum_valid(mnemonic)
+        is_checksum_valid, is_wordlist_valid = keystore.bip39_is_checksum_valid(
+            mnemonic)
         self.assertTrue(is_wordlist_valid)
         self.assertTrue(is_checksum_valid)
 
@@ -198,16 +205,19 @@ class Test_slip39(ElectrumTestCase):
     """ Test SLIP39 test vectors. """
 
     def test_slip39_vectors(self):
-        test_vector_file = os.path.join(os.path.dirname(__file__), "slip39-vectors.json")
+        test_vector_file = os.path.join(
+            os.path.dirname(__file__), "slip39-vectors.json")
         with open(test_vector_file, "r") as f:
             vectors = json.load(f)
         for description, mnemonics, expected_secret in vectors:
             if expected_secret:
                 encrypted_seed = slip39.recover_ems(mnemonics)
-                assert bytes.fromhex(expected_secret) == encrypted_seed.decrypt("TREZOR"), 'Incorrect secret for test vector "{}".'.format(description)
+                assert bytes.fromhex(expected_secret) == encrypted_seed.decrypt(
+                    "TREZOR"), 'Incorrect secret for test vector "{}".'.format(description)
             else:
                 with self.assertRaises(slip39.Slip39Error):
                     slip39.recover_ems(mnemonics)
                     self.fail(
-                        'Failed to raise exception for test vector "{}".'.format(description)
+                        'Failed to raise exception for test vector "{}".'.format(
+                            description)
                     )

@@ -28,8 +28,10 @@ class Plugin(JadePlugin, QtPluginBase):
         keystore = wallet.get_keystore()
         if type(keystore) == self.keystore_class and len(addrs) == 1:
             def show_address():
-                keystore.thread.add(partial(self.show_address, wallet, addrs[0]))
+                keystore.thread.add(
+                    partial(self.show_address, wallet, addrs[0]))
             menu.addAction(_("Show on Jade"), show_address)
+
 
 class Jade_Handler(QtHandlerBase):
     setup_signal = pyqtSignal()
@@ -40,7 +42,8 @@ class Jade_Handler(QtHandlerBase):
 
     def message_dialog(self, msg):
         self.clear_dialog()
-        self.dialog = dialog = WindowModalDialog(self.top_level_window(), _("Jade Status"))
+        self.dialog = dialog = WindowModalDialog(
+            self.top_level_window(), _("Jade Status"))
         l = QLabel(msg)
         vbox = QVBoxLayout(dialog)
         vbox.addWidget(l)

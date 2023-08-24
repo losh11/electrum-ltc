@@ -53,6 +53,7 @@ class ActionDropdown(Button):
             dropdown = DropDown()
             self.text = self.dropdown_text
             self._on_release = dropdown.open
+
             def on_btn(option_func):
                 def _on_btn(btn):
                     dropdown.dismiss()

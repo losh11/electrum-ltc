@@ -21,7 +21,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 import binascii
-import os, sys, re, json
+import os
+import sys
+import re
+import json
 from collections import defaultdict, OrderedDict
 from typing import (NamedTuple, Union, TYPE_CHECKING, Tuple, Optional, Callable, Any,
                     Sequence, Dict, Generic, TypeVar, List, Iterable, Set)
@@ -35,7 +38,9 @@ import hmac
 import stat
 from locale import localeconv
 import asyncio
-import urllib.request, urllib.parse, urllib.error
+import urllib.request
+import urllib.parse
+import urllib.error
 import builtins
 import json
 import time
@@ -82,14 +87,16 @@ def all_subclasses(cls) -> Set:
 ca_path = certifi.where()
 
 
-base_units = {'BTC':8, 'mBTC':5, 'bits':2, 'sat':0}
+base_units = {'LTC': 8, 'mLTC': 5, 'uLTC': 2, 'sat': 0}
 base_units_inverse = inv_dict(base_units)
-base_units_list = ['BTC', 'mBTC', 'bits', 'sat']  # list(dict) does not guarantee order
+# list(dict) does not guarantee order
+base_units_list = ['LTC', 'mLTC', 'uLTC', 'sat']
 
-DECIMAL_POINT_DEFAULT = 5  # mBTC
+DECIMAL_POINT_DEFAULT = 8  # LTC
 
 
-class UnknownBaseUnit(Exception): pass
+class UnknownBaseUnit(Exception):
+    pass
 
 
 def decimal_point_to_base_unit_name(dp: int) -> str:
@@ -106,6 +113,7 @@ def base_unit_name_to_decimal_point(unit_name: str) -> int:
         return base_units[unit_name]
     except KeyError:
         raise UnknownBaseUnit(unit_name) from None
+
 
 def parse_max_spend(amt: Any) -> Optional[int]:
     """Checks if given amount is "spend-max"-like.
@@ -133,6 +141,7 @@ def parse_max_spend(amt: Any) -> Optional[int]:
         return x
     return None
 
+
 class NotEnoughFunds(Exception):
     def __str__(self):
         return _("Insufficient funds")
@@ -144,14 +153,8 @@ class NoDynamicFeeEstimates(Exception):
 
 
 class InvalidPassword(Exception):
-    def __init__(self, message: Optional[str] = None):
-        self.message = message
-
     def __str__(self):
-        if self.message is None:
-            return _("Incorrect password")
-        else:
-            return str(self.message)
+        return _("Incorrect password")
 
 
 class AddTransactionException(Exception):
@@ -179,17 +182,20 @@ class FileExportFailed(Exception):
         return _("Failed to export to file.") + "\n" + self.message
 
 
-class WalletFileException(Exception): pass
+class WalletFileException(Exception):
+    pass
 
 
-class BitcoinException(Exception): pass
+class BitcoinException(Exception):
+    pass
 
 
 class UserFacingException(Exception):
     """Exception that contains information intended to be shown to the user."""
 
 
-class InvoiceError(UserFacingException): pass
+class InvoiceError(UserFacingException):
+    pass
 
 
 # Throw this exception to unwind the stack like when an error occurs.
@@ -234,12 +240,13 @@ class Fiat(object):
         self = super(Fiat, cls).__new__(cls)
         self.ccy = ccy
         if not isinstance(value, (Decimal, type(None))):
-            raise TypeError(f"value should be Decimal or None, not {type(value)}")
+            raise TypeError(
+                f"value should be Decimal or None, not {type(value)}")
         self.value = value
         return self
 
     def __repr__(self):
-        return 'Fiat(%s)'% self.__str__()
+        return 'Fiat(%s)' % self.__str__()
 
     def __str__(self):
         if self.value is None or self.value.is_nan():
@@ -292,7 +299,7 @@ class MyEncoder(json.JSONEncoder):
             return obj.isoformat(' ')[:-3]
         if isinstance(obj, set):
             return list(obj)
-        if isinstance(obj, bytes): # for nametuples in lnchannel
+        if isinstance(obj, bytes):  # for nametuples in lnchannel
             return obj.hex()
         if hasattr(obj, 'to_json') and callable(obj.to_json):
             return obj.to_json()
@@ -311,8 +318,10 @@ class ThreadJob(Logger):
         """Called periodically from the thread"""
         pass
 
+
 class DebugMem(ThreadJob):
     '''A handy class for debugging GC memory leaks'''
+
     def __init__(self, classes, interval=30):
         ThreadJob.__init__(self)
         self.next_time = 0
@@ -336,6 +345,7 @@ class DebugMem(ThreadJob):
         if time.time() > self.next_time:
             self.mem_stats()
             self.next_time = time.time() + self.interval
+
 
 class DaemonThread(threading.Thread, Logger):
     """ daemon thread that terminates cleanly """
@@ -399,24 +409,28 @@ def print_stderr(*args):
     sys.stderr.write(" ".join(args) + "\n")
     sys.stderr.flush()
 
+
 def print_msg(*args):
     # Stringify args
     args = [str(item) for item in args]
     sys.stdout.write(" ".join(args) + "\n")
     sys.stdout.flush()
 
+
 def json_encode(obj):
     try:
-        s = json.dumps(obj, sort_keys = True, indent = 4, cls=MyEncoder)
+        s = json.dumps(obj, sort_keys=True, indent=4, cls=MyEncoder)
     except TypeError:
         s = repr(obj)
     return s
+
 
 def json_decode(x):
     try:
         return json.loads(x, parse_float=Decimal)
     except:
         return x
+
 
 def json_normalize(x):
     # note: The return value of commands, when going through the JSON-RPC interface,
@@ -434,6 +448,8 @@ def constant_time_compare(val1, val2):
 
 # decorator that prints execution time
 _profiler_logger = _logger.getChild('profiler')
+
+
 def profiler(func):
     def do_profile(args, kw_args):
         name = func.__qualname__
@@ -449,17 +465,19 @@ def android_ext_dir():
     from android.storage import primary_external_storage_path
     return primary_external_storage_path()
 
+
 def android_backup_dir():
-    pkgname = get_android_package_name()
-    d = os.path.join(android_ext_dir(), pkgname)
+    d = os.path.join(android_ext_dir(), 'org.electrum.electrum')
     if not os.path.exists(d):
         os.mkdir(d)
     return d
+
 
 def android_data_dir():
     import jnius
     PythonActivity = jnius.autoclass('org.kivy.android.PythonActivity')
     return PythonActivity.mActivity.getFilesDir().getPath() + '/data'
+
 
 def ensure_sparse_file(filename):
     # On modern Linux, no need to do anything.
@@ -497,11 +515,11 @@ def assert_file_in_datadir_available(path, config_path):
 
 def standardize_path(path):
     return os.path.normcase(
-            os.path.realpath(
-                os.path.abspath(
-                    os.path.expanduser(
-                        path
-    ))))
+        os.path.realpath(
+            os.path.abspath(
+                os.path.expanduser(
+                    path
+                ))))
 
 
 def get_new_wallet_name(wallet_folder: str) -> str:
@@ -516,26 +534,6 @@ def get_new_wallet_name(wallet_folder: str) -> str:
         else:
             break
     return filename
-
-
-def is_android_debug_apk() -> bool:
-    is_android = 'ANDROID_DATA' in os.environ
-    if not is_android:
-        return False
-    from jnius import autoclass
-    pkgname = get_android_package_name()
-    build_config = autoclass(f"{pkgname}.BuildConfig")
-    return bool(build_config.DEBUG)
-
-
-def get_android_package_name() -> str:
-    is_android = 'ANDROID_DATA' in os.environ
-    assert is_android
-    from jnius import autoclass
-    from android.config import ACTIVITY_CLASS_NAME
-    activity = autoclass(ACTIVITY_CLASS_NAME).mActivity
-    pkgname = str(activity.getPackageName())
-    return pkgname
 
 
 def assert_bytes(*args):
@@ -602,18 +600,18 @@ def xor_bytes(a: bytes, b: bytes) -> bytes:
 
 
 def user_dir():
-    if "ELECTRUMDIR" in os.environ:
-        return os.environ["ELECTRUMDIR"]
+    if "ELECTRUMLTC_DIR" in os.environ:
+        return os.environ["ELECTRUMLTC_DIR"]
     elif 'ANDROID_DATA' in os.environ:
         return android_data_dir()
     elif os.name == 'posix':
-        return os.path.join(os.environ["HOME"], ".electrum")
+        return os.path.join(os.environ["HOME"], ".electrum-ltc")
     elif "APPDATA" in os.environ:
-        return os.path.join(os.environ["APPDATA"], "Electrum")
+        return os.path.join(os.environ["APPDATA"], "Electrum-LTC")
     elif "LOCALAPPDATA" in os.environ:
-        return os.path.join(os.environ["LOCALAPPDATA"], "Electrum")
+        return os.path.join(os.environ["LOCALAPPDATA"], "Electrum-LTC")
     else:
-        #raise Exception("No home directory found in environment variables.")
+        # raise Exception("No home directory found in environment variables.")
         return
 
 
@@ -631,13 +629,16 @@ def is_valid_email(s):
 
 
 def is_hash256_str(text: Any) -> bool:
-    if not isinstance(text, str): return False
-    if len(text) != 64: return False
+    if not isinstance(text, str):
+        return False
+    if len(text) != 64:
+        return False
     return is_hex_str(text)
 
 
 def is_hex_str(text: Any) -> bool:
-    if not isinstance(text, str): return False
+    if not isinstance(text, str):
+        return False
     try:
         b = bytes.fromhex(text)
     except:
@@ -679,7 +680,8 @@ def chunks(items, size: int):
 def format_satoshis_plain(
         x: Union[int, float, Decimal, str],  # amount in satoshis,
         *,
-        decimal_point: int = 8,  # how much to shift decimal point to left (default: sat->BTC)
+        # how much to shift decimal point to left (default: sat->BTC)
+        decimal_point: int = 8,
 ) -> str:
     """Display a satoshi amount scaled.  Always uses a '.' as a decimal
     point and has no thousands separator"""
@@ -695,7 +697,8 @@ def format_satoshis_plain(
 # log10(21_000_000 * 10**8 * 1000) ~= 18.3
 # decimal.DefaultContext.prec == 28 by default, but it is mutable.
 # We enforce that we have at least that available.
-assert decimal.getcontext().prec >= 28, f"PyDecimal precision too low: {decimal.getcontext().prec}"
+assert decimal.getcontext(
+).prec >= 28, f"PyDecimal precision too low: {decimal.getcontext().prec}"
 
 DECIMAL_POINT = localeconv()['decimal_point']  # type: str
 
@@ -704,11 +707,13 @@ def format_satoshis(
         x: Union[int, float, Decimal, str, None],  # amount in satoshis
         *,
         num_zeros: int = 0,
-        decimal_point: int = 8,  # how much to shift decimal point to left (default: sat->BTC)
+        # how much to shift decimal point to left (default: sat->BTC)
+        decimal_point: int = 8,
         precision: int = 0,  # extra digits after satoshi precision
         is_diff: bool = False,  # if True, enforce a leading sign (+/-)
         whitespaces: bool = False,  # if True, add whitespaces, to align numbers in a column
-        add_thousands_sep: bool = False,  # if True, add whitespaces, for better readability of the numbers
+        # if True, add whitespaces, for better readability of the numbers
+        add_thousands_sep: bool = False,
 ) -> str:
     if x is None:
         return 'unknown'
@@ -718,14 +723,17 @@ def format_satoshis(
     # lose redundant precision
     x = Decimal(x).quantize(Decimal(10) ** (-precision))
     # format string
-    overall_precision = decimal_point + precision  # max digits after final decimal point
-    decimal_format = "." + str(overall_precision) if overall_precision > 0 else ""
+    # max digits after final decimal point
+    overall_precision = decimal_point + precision
+    decimal_format = "." + \
+        str(overall_precision) if overall_precision > 0 else ""
     if is_diff:
         decimal_format = '+' + decimal_format
     # initial result
     scale_factor = pow(10, decimal_point)
     result = ("{:" + decimal_format + "f}").format(x / scale_factor)
-    if "." not in result: result += "."
+    if "." not in result:
+        result += "."
     result = result.rstrip('0')
     # add extra decimal places (zeros)
     integer_part, fract_part = result.split(".")
@@ -738,12 +746,14 @@ def format_satoshis(
             integer_part = integer_part[1:]
         integer_part = "{:,}".format(int(integer_part)).replace(',', " ")
         integer_part = sign + integer_part
-        fract_part = " ".join(fract_part[i:i+3] for i in range(0, len(fract_part), 3))
+        fract_part = " ".join(fract_part[i:i+3]
+                              for i in range(0, len(fract_part), 3))
     result = integer_part + DECIMAL_POINT + fract_part
     # add leading/trailing whitespaces so that numbers can be aligned in a column
     if whitespaces:
         target_fract_len = overall_precision
-        target_integer_len = 14 - decimal_point  # should be enough for up to unsigned 999999 BTC
+        # should be enough for up to unsigned 999999 BTC
+        target_integer_len = 14 - decimal_point
         if add_thousands_sep:
             target_fract_len += max(0, (target_fract_len - 1) // 3)
             target_integer_len += max(0, (target_integer_len - 1) // 3)
@@ -762,7 +772,8 @@ _feerate_quanta = Decimal(10) ** (-FEERATE_PRECISION)
 def format_fee_satoshis(fee, *, num_zeros=0, precision=None):
     if precision is None:
         precision = FEERATE_PRECISION
-    num_zeros = min(num_zeros, FEERATE_PRECISION)  # no more zeroes than available prec
+    # no more zeroes than available prec
+    num_zeros = min(num_zeros, FEERATE_PRECISION)
     return format_satoshis(fee, num_zeros=num_zeros, decimal_point=0, precision=precision)
 
 
@@ -778,13 +789,14 @@ def timestamp_to_datetime(timestamp: Optional[int]) -> Optional[datetime]:
         return None
     return datetime.fromtimestamp(timestamp)
 
+
 def format_time(timestamp):
     date = timestamp_to_datetime(timestamp)
     return date.isoformat(' ')[:-3] if date else _("Unknown")
 
 
 # Takes a timestamp and returns a string with the approximation of the age
-def age(from_date, since_date = None, target_tz=None, include_seconds=False):
+def age(from_date, since_date=None, target_tz=None, include_seconds=False):
     if from_date is None:
         return "Unknown"
 
@@ -797,8 +809,9 @@ def age(from_date, since_date = None, target_tz=None, include_seconds=False):
 
 
 def time_difference(distance_in_time, include_seconds):
-    #distance_in_time = since_date - from_date
-    distance_in_seconds = int(round(abs(distance_in_time.days * 86400 + distance_in_time.seconds)))
+    # distance_in_time = since_date - from_date
+    distance_in_seconds = int(
+        round(abs(distance_in_time.days * 86400 + distance_in_time.seconds)))
     distance_in_minutes = int(round(distance_in_seconds/60))
 
     if distance_in_minutes == 0:
@@ -825,73 +838,46 @@ def time_difference(distance_in_time, include_seconds):
     else:
         return "over %d years" % (round(distance_in_minutes / 525600))
 
+
 mainnet_block_explorers = {
-    'Bitupper Explorer': ('https://bitupper.com/en/explorer/bitcoin/',
-                        {'tx': 'transactions/', 'addr': 'addresses/'}),
-    'Bitflyer.jp': ('https://chainflyer.bitflyer.jp/',
-                        {'tx': 'Transaction/', 'addr': 'Address/'}),
-    'Blockchain.info': ('https://blockchain.com/btc/',
+    'Bitaps.com': ('https://ltc.bitaps.com/',
+                   {'tx': '', 'addr': ''}),
+    'Blockchair.com': ('https://blockchair.com/litecoin/',
+                       {'tx': 'transaction/', 'addr': 'address/'}),
+    'Blockchair.com (Tor)': ('http://blkchairbknpn73cfjhevhla7rkp4ed5gg2knctvv7it4lioy22defid.onion/litecoin/',
+                             {'tx': 'transaction/', 'addr': 'address/'}),
+    'BlockCypher.com': ('https://live.blockcypher.com/ltc/',
                         {'tx': 'tx/', 'addr': 'address/'}),
-    'blockchainbdgpzk.onion': ('https://blockchainbdgpzk.onion/',
-                        {'tx': 'tx/', 'addr': 'address/'}),
-    'Blockstream.info': ('https://blockstream.info/',
-                        {'tx': 'tx/', 'addr': 'address/'}),
-    'Bitaps.com': ('https://btc.bitaps.com/',
-                        {'tx': '', 'addr': ''}),
-    'BTC.com': ('https://btc.com/',
-                        {'tx': '', 'addr': ''}),
-    'Chain.so': ('https://www.chain.so/',
-                        {'tx': 'tx/BTC/', 'addr': 'address/BTC/'}),
-    'Insight.is': ('https://insight.bitpay.com/',
-                        {'tx': 'tx/', 'addr': 'address/'}),
-    'TradeBlock.com': ('https://tradeblock.com/blockchain/',
-                        {'tx': 'tx/', 'addr': 'address/'}),
-    'BlockCypher.com': ('https://live.blockcypher.com/btc/',
-                        {'tx': 'tx/', 'addr': 'address/'}),
-    'Blockchair.com': ('https://blockchair.com/bitcoin/',
-                        {'tx': 'transaction/', 'addr': 'address/'}),
-    'blockonomics.co': ('https://www.blockonomics.co/',
-                        {'tx': 'api/tx?txid=', 'addr': '#/search?q='}),
-    'mempool.space': ('https://mempool.space/',
-                        {'tx': 'tx/', 'addr': 'address/'}),
-    'mempool.emzy.de': ('https://mempool.emzy.de/',
-                        {'tx': 'tx/', 'addr': 'address/'}),
-    'OXT.me': ('https://oxt.me/',
-                        {'tx': 'transaction/', 'addr': 'address/'}),
-    'smartbit.com.au': ('https://www.smartbit.com.au/',
-                        {'tx': 'tx/', 'addr': 'address/'}),
-    'mynode.local': ('http://mynode.local:3002/',
-                        {'tx': 'tx/', 'addr': 'address/'}),
-    'system default': ('blockchain:/',
-                        {'tx': 'tx/', 'addr': 'address/'}),
+    'explorer.litecoin.net': ('http://explorer.litecoin.net/',
+                              {'tx': 'tx/', 'addr': 'address/'}),
+    'LiteCore': ('https://insight.litecore.io/',
+                 {'tx': 'tx/', 'addr': 'address/'}),
+    'SoChain': ('https://chain.so/',
+                {'tx': 'tx/LTC/', 'addr': 'address/LTC/'}),
+    'system default': ('blockchain://12a765e31ffd4059bada1e25190f6e98c99d9714d334efa41a195a7e7e04bfe2/',
+                       {'tx': 'tx/', 'addr': 'address/'}),
 }
 
 testnet_block_explorers = {
-    'Bitaps.com': ('https://tbtc.bitaps.com/',
-                       {'tx': '', 'addr': ''}),
-    'BlockCypher.com': ('https://live.blockcypher.com/btc-testnet/',
-                       {'tx': 'tx/', 'addr': 'address/'}),
-    'Blockchain.info': ('https://www.blockchain.com/btc-testnet/',
-                       {'tx': 'tx/', 'addr': 'address/'}),
-    'Blockstream.info': ('https://blockstream.info/testnet/',
-                        {'tx': 'tx/', 'addr': 'address/'}),
-    'mempool.space': ('https://mempool.space/testnet/',
-                        {'tx': 'tx/', 'addr': 'address/'}),
-    'smartbit.com.au': ('https://testnet.smartbit.com.au/',
-                       {'tx': 'tx/', 'addr': 'address/'}),
-    'system default': ('blockchain://000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943/',
+    'Bitaps.com': ('https://tltc.bitaps.com/',
+                   {'tx': '', 'addr': ''}),
+    'LiteCore': ('https://testnet.litecore.io/',
+                 {'tx': 'tx/', 'addr': 'address/'}),
+    'SoChain': ('https://chain.so/',
+                {'tx': 'tx/LTCTEST/', 'addr': 'address/LTCTEST/'}),
+    'system default': ('blockchain://4966625a4b2851d9fdee139e56211a0d88575f59ed816ff5e6a63deb4e3e29a0/',
                        {'tx': 'tx/', 'addr': 'address/'}),
 }
 
 signet_block_explorers = {
     'bc-2.jp': ('https://explorer.bc-2.jp/',
-                        {'tx': 'tx/', 'addr': 'address/'}),
+                {'tx': 'tx/', 'addr': 'address/'}),
     'mempool.space': ('https://mempool.space/signet/',
-                        {'tx': 'tx/', 'addr': 'address/'}),
+                      {'tx': 'tx/', 'addr': 'address/'}),
     'bitcoinexplorer.org': ('https://signet.bitcoinexplorer.org/',
-                       {'tx': 'tx/', 'addr': 'address/'}),
+                            {'tx': 'tx/', 'addr': 'address/'}),
     'wakiyamap.dev': ('https://signet-explorer.wakiyamap.dev/',
-                       {'tx': 'tx/', 'addr': 'address/'}),
+                      {'tx': 'tx/', 'addr': 'address/'}),
     'system default': ('blockchain:/',
                        {'tx': 'tx/', 'addr': 'address/'}),
 }
@@ -914,7 +900,7 @@ def block_explorer(config: 'SimpleConfig') -> Optional[str]:
     """
     if config.get('block_explorer_custom') is not None:
         return None
-    default_ = 'Blockstream.info'
+    default_ = 'Bitaps.com'
     be_key = config.get('block_explorer', default_)
     be_tuple = block_explorer_info().get(be_key)
     if be_tuple is None:
@@ -952,16 +938,17 @@ def block_explorer_URL(config: 'SimpleConfig', kind: str, item: str) -> Optional
     return ''.join(url_parts)
 
 # URL decode
-#_ud = re.compile('%([0-9a-hA-H]{2})', re.MULTILINE)
-#urldecode = lambda x: _ud.sub(lambda m: chr(int(m.group(1), 16)), x)
+# _ud = re.compile('%([0-9a-hA-H]{2})', re.MULTILINE)
+# urldecode = lambda x: _ud.sub(lambda m: chr(int(m.group(1), 16)), x)
 
 
 # note: when checking against these, use .lower() to support case-insensitivity
-BITCOIN_BIP21_URI_SCHEME = 'bitcoin'
+BITCOIN_BIP21_URI_SCHEME = 'litecoin'
 LIGHTNING_URI_SCHEME = 'lightning'
 
 
-class InvalidBitcoinURI(Exception): pass
+class InvalidBitcoinURI(Exception):
+    pass
 
 
 # TODO rename to parse_bip21_uri or similar
@@ -969,19 +956,19 @@ def parse_URI(uri: str, on_pr: Callable = None, *, loop=None) -> dict:
     """Raises InvalidBitcoinURI on malformed URI."""
     from . import bitcoin
     from .bitcoin import COIN, TOTAL_COIN_SUPPLY_LIMIT_IN_BTC
-    from .lnaddr import lndecode, LnDecodeException
+    from .lnaddr import lndecode
 
     if not isinstance(uri, str):
         raise InvalidBitcoinURI(f"expected string, not {repr(uri)}")
 
     if ':' not in uri:
         if not bitcoin.is_address(uri):
-            raise InvalidBitcoinURI("Not a bitcoin address")
+            raise InvalidBitcoinURI("Not a litecoin address")
         return {'address': uri}
 
     u = urllib.parse.urlparse(uri)
     if u.scheme.lower() != BITCOIN_BIP21_URI_SCHEME:
-        raise InvalidBitcoinURI("Not a bitcoin URI")
+        raise InvalidBitcoinURI("Not a litecoin URI")
     address = u.path
 
     # python for android fails to parse query
@@ -998,7 +985,7 @@ def parse_URI(uri: str, on_pr: Callable = None, *, loop=None) -> dict:
     out = {k: v[0] for k, v in pq.items()}
     if address:
         if not bitcoin.is_address(address):
-            raise InvalidBitcoinURI(f"Invalid bitcoin address: {address}")
+            raise InvalidBitcoinURI(f"Invalid litecoin address: {address}")
         out['address'] = address
     if 'amount' in out:
         am = out['amount']
@@ -1010,10 +997,12 @@ def parse_URI(uri: str, on_pr: Callable = None, *, loop=None) -> dict:
             else:
                 amount = Decimal(am) * COIN
             if amount > TOTAL_COIN_SUPPLY_LIMIT_IN_BTC * COIN:
-                raise InvalidBitcoinURI(f"amount is out-of-bounds: {amount!r} BTC")
+                raise InvalidBitcoinURI(
+                    f"amount is out-of-bounds: {amount!r} LTC")
             out['amount'] = int(amount)
         except Exception as e:
-            raise InvalidBitcoinURI(f"failed to parse 'amount' field: {repr(e)}") from e
+            raise InvalidBitcoinURI(
+                f"failed to parse 'amount' field: {repr(e)}") from e
     if 'message' in out:
         out['message'] = out['message']
         out['memo'] = out['message']
@@ -1021,32 +1010,32 @@ def parse_URI(uri: str, on_pr: Callable = None, *, loop=None) -> dict:
         try:
             out['time'] = int(out['time'])
         except Exception as e:
-            raise InvalidBitcoinURI(f"failed to parse 'time' field: {repr(e)}") from e
+            raise InvalidBitcoinURI(
+                f"failed to parse 'time' field: {repr(e)}") from e
     if 'exp' in out:
         try:
             out['exp'] = int(out['exp'])
         except Exception as e:
-            raise InvalidBitcoinURI(f"failed to parse 'exp' field: {repr(e)}") from e
+            raise InvalidBitcoinURI(
+                f"failed to parse 'exp' field: {repr(e)}") from e
     if 'sig' in out:
         try:
             out['sig'] = bh2u(bitcoin.base_decode(out['sig'], base=58))
         except Exception as e:
-            raise InvalidBitcoinURI(f"failed to parse 'sig' field: {repr(e)}") from e
+            raise InvalidBitcoinURI(
+                f"failed to parse 'sig' field: {repr(e)}") from e
     if 'lightning' in out:
         try:
             lnaddr = lndecode(out['lightning'])
-        except LnDecodeException as e:
-            raise InvalidBitcoinURI(f"Failed to decode 'lightning' field: {e!r}") from e
-        amount_sat = out.get('amount')
-        if amount_sat:
-            # allow small leeway due to msat precision
-            if abs(amount_sat - int(lnaddr.get_amount_sat())) > 1:
-                raise InvalidBitcoinURI("Inconsistent lightning field in bip21: amount")
-        address = out.get('address')
-        ln_fallback_addr = lnaddr.get_fallback_address()
-        if address and ln_fallback_addr:
-            if ln_fallback_addr != address:
-                raise InvalidBitcoinURI("Inconsistent lightning field in bip21: address")
+            amount_sat = out.get('amount')
+            if amount_sat:
+                assert int(lnaddr.get_amount_sat()) == amount_sat
+            address = out.get('address')
+            if address:
+                assert lnaddr.get_fallback_address() == address
+        except Exception as e:
+            raise InvalidBitcoinURI(
+                f"Inconsistent lightning field: {repr(e)}") from e
 
     r = out.get('r')
     sig = out.get('sig')
@@ -1077,9 +1066,9 @@ def create_bip21_uri(addr, amount_sat: Optional[int], message: Optional[str],
         extra_query_params = {}
     query = []
     if amount_sat:
-        query.append('amount=%s'%format_satoshis_plain(amount_sat))
+        query.append('amount=%s' % format_satoshis_plain(amount_sat))
     if message:
-        query.append('message=%s'%urllib.parse.quote(message))
+        query.append('message=%s' % urllib.parse.quote(message))
     for k, v in extra_query_params.items():
         if not isinstance(k, str) or k != urllib.parse.quote(k):
             raise Exception(f"illegal key for URI: {repr(k)}")
@@ -1096,8 +1085,11 @@ def create_bip21_uri(addr, amount_sat: Optional[int], message: Optional[str],
     return str(urllib.parse.urlunparse(p))
 
 
-def maybe_extract_lightning_payment_identifier(data: str) -> Optional[str]:
+def maybe_extract_bolt11_invoice(data: str) -> Optional[str]:
     data = data.strip()  # whitespaces
+    # Litecoin: legacy addresses may start with 'LN'
+    if len(data) < 40:
+        return None
     data = data.lower()
     if data.startswith(LIGHTNING_URI_SCHEME + ':ln'):
         cut_prefix = LIGHTNING_URI_SCHEME + ':'
@@ -1107,25 +1099,14 @@ def maybe_extract_lightning_payment_identifier(data: str) -> Optional[str]:
     return None
 
 
-def is_uri(data: str) -> bool:
-    data = data.lower()
-    if (data.startswith(LIGHTNING_URI_SCHEME + ":") or
-            data.startswith(BITCOIN_BIP21_URI_SCHEME + ':')):
-        return True
-    return False
-
-
-class FailedToParsePaymentIdentifier(Exception):
-    pass
-
-
 # Python bug (http://bugs.python.org/issue1927) causes raw_input
 # to be redirected improperly between stdin/stderr on Unix systems
-#TODO: py3
+# TODO: py3
 def raw_input(prompt=None):
     if prompt:
         sys.stdout.write(prompt)
     return builtin_raw_input()
+
 
 builtin_raw_input = builtins.input
 builtins.input = raw_input
@@ -1134,7 +1115,7 @@ builtins.input = raw_input
 def parse_json(message):
     # TODO: check \r\n pattern
     n = message.find(b'\n')
-    if n==-1:
+    if n == -1:
         return None, message
     try:
         j = json.loads(message[0:n].decode('utf8'))
@@ -1182,7 +1163,7 @@ def read_json_file(path):
     try:
         with open(path, 'r', encoding='utf-8') as f:
             data = json.loads(f.read())
-    #backwards compatibility for JSONDecodeError
+    # backwards compatibility for JSONDecodeError
     except ValueError:
         _logger.exception('')
         raise FileImportFailed(_("Invalid JSON code."))
@@ -1201,41 +1182,19 @@ def write_json_file(path, data):
         raise FileExportFailed(e)
 
 
-def os_chmod(path, mode):
-    """os.chmod aware of tmpfs"""
-    try:
-        os.chmod(path, mode)
-    except OSError as e:
-        xdg_runtime_dir = os.environ.get("XDG_RUNTIME_DIR", None)
-        if xdg_runtime_dir and is_subpath(path, xdg_runtime_dir):
-            _logger.info(f"Tried to chmod in tmpfs. Skipping... {e!r}")
-        else:
-            raise
-
-
 def make_dir(path, allow_symlink=True):
     """Make directory if it does not yet exist."""
     if not os.path.exists(path):
         if not allow_symlink and os.path.islink(path):
             raise Exception('Dangling link: ' + path)
         os.mkdir(path)
-        os_chmod(path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
-
-
-def is_subpath(long_path: str, short_path: str) -> bool:
-    """Returns whether long_path is a sub-path of short_path."""
-    try:
-        common = os.path.commonpath([long_path, short_path])
-    except ValueError:
-        return False
-    short_path = standardize_path(short_path)
-    common     = standardize_path(common)
-    return short_path == common
+        os.chmod(path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
 
 
 def log_exceptions(func):
     """Decorator to log AND re-raise exceptions."""
     assert asyncio.iscoroutinefunction(func), 'func needs to be a coroutine'
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         self = args[0] if len(args) > 0 else None
@@ -1248,7 +1207,8 @@ def log_exceptions(func):
             try:
                 mylogger.exception(f"Exception in {func.__name__}: {repr(e)}")
             except BaseException as e2:
-                print(f"logging exception raised: {repr(e2)}... orig exc: {repr(e)} in {func.__name__}")
+                print(
+                    f"logging exception raised: {repr(e2)}... orig exc: {repr(e)} in {func.__name__}")
             raise
     return wrapper
 
@@ -1256,6 +1216,7 @@ def log_exceptions(func):
 def ignore_exceptions(func):
     """Decorator to silently swallow all exceptions."""
     assert asyncio.iscoroutinefunction(func), 'func needs to be a coroutine'
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         try:
@@ -1267,6 +1228,7 @@ def ignore_exceptions(func):
 
 def with_lock(func):
     """Decorator to enforce a lock on a function call."""
+
     def func_wrapper(self, *args, **kwargs):
         with self.lock:
             return func(self, *args, **kwargs)
@@ -1275,7 +1237,8 @@ def with_lock(func):
 
 class TxMinedInfo(NamedTuple):
     height: int                        # height of block that mined tx
-    conf: Optional[int] = None         # number of confirmations, SPV verified (None means unknown)
+    # number of confirmations, SPV verified (None means unknown)
+    conf: Optional[int] = None
     timestamp: Optional[int] = None    # timestamp of block that mined tx
     txpos: Optional[int] = None        # position of tx in serialized block
     header_hash: Optional[str] = None  # hash of block that mined tx
@@ -1290,7 +1253,8 @@ def make_aiohttp_session(proxy: Optional[dict], headers=None, timeout=None):
         timeout = aiohttp.ClientTimeout(total=45)
     elif isinstance(timeout, (int, float)):
         timeout = aiohttp.ClientTimeout(total=timeout)
-    ssl_context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH, cafile=ca_path)
+    ssl_context = ssl.create_default_context(
+        purpose=ssl.Purpose.SERVER_AUTH, cafile=ca_path)
 
     if proxy:
         connector = ProxyConnector(
@@ -1328,7 +1292,6 @@ class OldTaskGroup(aiorpcx.TaskGroup):
         await group.spawn(task1())
         await group.spawn(task2())
     ```
-    # TODO see if we can migrate to asyncio.timeout, introduced in python 3.11, and use stdlib instead of aiorpcx.curio...
     """
     async def join(self):
         if self._wait is all:
@@ -1365,11 +1328,14 @@ class OldTaskGroup(aiorpcx.TaskGroup):
 # see https://github.com/kyuupichan/aiorpcX/issues/44
 # see https://github.com/aio-libs/async-timeout/issues/229
 # see https://bugs.python.org/issue42130 and https://bugs.python.org/issue45098
-# TODO see if we can migrate to asyncio.timeout, introduced in python 3.11, and use stdlib instead of aiorpcx.curio...
+
+
 def _aiorpcx_monkeypatched_set_new_deadline(task, deadline):
     def timeout_task():
         task._orig_cancel()
-        task._timed_out = None if getattr(task, "_externally_cancelled", False) else deadline
+        task._timed_out = None if getattr(
+            task, "_externally_cancelled", False) else deadline
+
     def mycancel(*args, **kwargs):
         task._orig_cancel(*args, **kwargs)
         task._externally_cancelled = True
@@ -1380,25 +1346,7 @@ def _aiorpcx_monkeypatched_set_new_deadline(task, deadline):
     task._deadline_handle = task._loop.call_at(deadline, timeout_task)
 
 
-def _aiorpcx_monkeypatched_set_task_deadline(task, deadline):
-    ret = _aiorpcx_orig_set_task_deadline(task, deadline)
-    task._externally_cancelled = None
-    return ret
-
-
-def _aiorpcx_monkeypatched_unset_task_deadline(task):
-    if hasattr(task, "_orig_cancel"):
-        task.cancel = task._orig_cancel
-        del task._orig_cancel
-    return _aiorpcx_orig_unset_task_deadline(task)
-
-
-_aiorpcx_orig_set_task_deadline    = aiorpcx.curio._set_task_deadline
-_aiorpcx_orig_unset_task_deadline  = aiorpcx.curio._unset_task_deadline
-
-aiorpcx.curio._set_new_deadline    = _aiorpcx_monkeypatched_set_new_deadline
-aiorpcx.curio._set_task_deadline   = _aiorpcx_monkeypatched_set_task_deadline
-aiorpcx.curio._unset_task_deadline = _aiorpcx_monkeypatched_unset_task_deadline
+aiorpcx.curio._set_new_deadline = _aiorpcx_monkeypatched_set_new_deadline
 
 
 class NetworkJobOnDefaultServer(Logger, ABC):
@@ -1406,6 +1354,7 @@ class NetworkJobOnDefaultServer(Logger, ABC):
     interface. Every time the main interface changes, the job is
     restarted, and some of its internals are reset.
     """
+
     def __init__(self, network: 'Network'):
         Logger.__init__(self)
         self.network = network
@@ -1473,6 +1422,8 @@ class NetworkJobOnDefaultServer(Logger, ABC):
 
 
 _asyncio_event_loop = None  # type: Optional[asyncio.AbstractEventLoop]
+
+
 def get_asyncio_loop() -> asyncio.AbstractEventLoop:
     """Returns the global asyncio event loop we use."""
     if _asyncio_event_loop is None:
@@ -1624,7 +1575,8 @@ def is_localhost(host: str) -> bool:
     if host[0] == '[' and host[-1] == ']':  # IPv6
         host = host[1:-1]
     try:
-        ip_addr = ipaddress.ip_address(host)  # type: Union[IPv4Address, IPv6Address]
+        # type: Union[IPv4Address, IPv6Address]
+        ip_addr = ipaddress.ip_address(host)
         return ip_addr.is_loopback
     except ValueError:
         pass  # not an IP
@@ -1637,7 +1589,8 @@ def is_private_netaddress(host: str) -> bool:
     if host[0] == '[' and host[-1] == ']':  # IPv6
         host = host[1:-1]
     try:
-        ip_addr = ipaddress.ip_address(host)  # type: Union[IPv4Address, IPv6Address]
+        # type: Union[IPv4Address, IPv6Address]
+        ip_addr = ipaddress.ip_address(host)
         return ip_addr.is_private
     except ValueError:
         pass  # not an IP
@@ -1679,13 +1632,14 @@ class CallbackManager:
 
     def __init__(self):
         self.callback_lock = threading.Lock()
-        self.callbacks = defaultdict(list)      # note: needs self.callback_lock
+        # note: needs self.callback_lock
+        self.callbacks = defaultdict(list)
         self.asyncio_loop = None
 
-    def register_callback(self, func, events):
+    def register_callback(self, callback, events):
         with self.callback_lock:
             for event in events:
-                self.callbacks[event].append(func)
+                self.callbacks[event].append(callback)
 
     def unregister_callback(self, callback):
         with self.callback_lock:
@@ -1706,50 +1660,20 @@ class CallbackManager:
         for callback in callbacks:
             # FIXME: if callback throws, we will lose the traceback
             if asyncio.iscoroutinefunction(callback):
-                asyncio.run_coroutine_threadsafe(callback(*args), self.asyncio_loop)
+                asyncio.run_coroutine_threadsafe(
+                    callback(event, *args), self.asyncio_loop)
             elif get_running_loop() == self.asyncio_loop:
                 # run callback immediately, so that it is guaranteed
                 # to have been executed when this method returns
-                callback(*args)
+                callback(event, *args)
             else:
-                self.asyncio_loop.call_soon_threadsafe(callback, *args)
+                self.asyncio_loop.call_soon_threadsafe(callback, event, *args)
 
 
 callback_mgr = CallbackManager()
 trigger_callback = callback_mgr.trigger_callback
 register_callback = callback_mgr.register_callback
 unregister_callback = callback_mgr.unregister_callback
-_event_listeners = defaultdict(set)  # type: Dict[str, Set[str]]
-
-
-class EventListener:
-
-    def _list_callbacks(self):
-        for c in self.__class__.__mro__:
-            classpath = f"{c.__module__}.{c.__name__}"
-            for method_name in _event_listeners[classpath]:
-                method = getattr(self, method_name)
-                assert callable(method)
-                assert method_name.startswith('on_event_')
-                yield method_name[len('on_event_'):], method
-
-    def register_callbacks(self):
-        for name, method in self._list_callbacks():
-            _logger.info(f'registering callback {method}')
-            register_callback(method, [name])
-
-    def unregister_callbacks(self):
-        for name, method in self._list_callbacks():
-            _logger.info(f'unregistering callback {method}')
-            unregister_callback(method)
-
-
-def event_listener(func):
-    classname, method_name = func.__qualname__.split('.')
-    assert method_name.startswith('on_event_')
-    classpath = f"{func.__module__}.{classname}"
-    _event_listeners[classpath].add(method_name)
-    return func
 
 
 _NetAddrType = TypeVar("_NetAddrType")
@@ -1765,7 +1689,8 @@ class NetworkRetryManager(Generic[_NetAddrType]):
             max_retry_delay_urgent: float = None,
             init_retry_delay_urgent: float = None,
     ):
-        self._last_tried_addr = {}  # type: Dict[_NetAddrType, Tuple[float, int]]  # (unix ts, num_attempts)
+        # type: Dict[_NetAddrType, Tuple[float, int]]  # (unix ts, num_attempts)
+        self._last_tried_addr = {}
 
         # note: these all use "seconds" as unit
         if max_retry_delay_urgent is None:
@@ -1798,7 +1723,8 @@ class NetworkRetryManager(Generic[_NetAddrType]):
         else:
             max_delay = self._max_retry_delay_normal
             init_delay = self._init_retry_delay_normal
-        delay = self.__calc_delay(multiplier=init_delay, max_delay=max_delay, num_attempts=num_attempts)
+        delay = self.__calc_delay(
+            multiplier=init_delay, max_delay=max_delay, num_attempts=num_attempts)
         next_time = last_time + delay
         return next_time < now
 
@@ -1877,6 +1803,7 @@ class JsonRPCClient:
 
 
 T = TypeVar('T')
+
 
 def random_shuffled_copy(x: Iterable[T]) -> List[T]:
     """Returns a shuffled copy of the input."""

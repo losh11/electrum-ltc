@@ -59,9 +59,11 @@ class GuiMixin(object):
         else:
             msg = _("Enter your current {} PIN:")
             show_strength = False
-        pin = self.handler.get_pin(msg.format(self.device), show_strength=show_strength)
+        pin = self.handler.get_pin(msg.format(
+            self.device), show_strength=show_strength)
         if len(pin) > 9:
-            self.handler.show_error(_('The PIN cannot be longer than 9 characters.'))
+            self.handler.show_error(
+                _('The PIN cannot be longer than 9 characters.'))
             pin = ''  # to cancel below
         if not pin:
             return self.proto.Cancel()
@@ -75,7 +77,7 @@ class GuiMixin(object):
             msg = _("Enter a passphrase to generate this wallet.  Each time "
                     "you use this wallet your {} will prompt you for the "
                     "passphrase.  If you forget the passphrase you cannot "
-                    "access the bitcoins in the wallet.").format(self.device)
+                    "access the litecoins in the wallet.").format(self.device)
         else:
             msg = _("Enter the passphrase to unlock this wallet:")
         passphrase = self.handler.get_passphrase(msg, self.creating_wallet)
@@ -86,7 +88,8 @@ class GuiMixin(object):
         ack = self.proto.PassphraseAck(passphrase=passphrase)
         length = len(ack.passphrase)
         if length > 50:
-            self.handler.show_error(_("Too long passphrase ({} > 50 chars).").format(length))
+            self.handler.show_error(
+                _("Too long passphrase ({} > 50 chars).").format(length))
             return self.proto.Cancel()
         return ack
 

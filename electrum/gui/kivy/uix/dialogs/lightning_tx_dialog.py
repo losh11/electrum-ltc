@@ -109,13 +109,15 @@ class LightningTxDialog(Factory.Popup):
         self._action_button_fn = lambda btn: None
         self.description = tx_item['label']
         self.timestamp = tx_item['timestamp']
-        self.date_str = datetime.fromtimestamp(self.timestamp).isoformat(' ')[:-3]
-        self.amount = Decimal(tx_item['amount_msat']) /1000
+        self.date_str = datetime.fromtimestamp(
+            self.timestamp).isoformat(' ')[:-3]
+        self.amount = Decimal(tx_item['amount_msat']) / 1000
         self.payment_hash = tx_item['payment_hash']
         self.preimage = tx_item['preimage']
         format_amount = self.app.format_amount_and_units
         self.is_sent = self.amount < 0
-        self.amount_str = format_amount(-self.amount if self.is_sent else self.amount)
+        self.amount_str = format_amount(
+            -self.amount if self.is_sent else self.amount)
         if tx_item.get('fee_msat'):
             self.fee_str = format_amount(Decimal(tx_item['fee_msat']) / 1000)
         invoice = (self.app.wallet.get_invoice(self.payment_hash)

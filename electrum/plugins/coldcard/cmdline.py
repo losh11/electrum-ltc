@@ -34,6 +34,7 @@ class ColdcardCmdLineHandler(CmdLineHandler):
     def finished(self):
         pass
 
+
 class Plugin(ColdcardPlugin):
     handler = ColdcardCmdLineHandler()
 

@@ -47,7 +47,7 @@ docker build \
 # maybe do fresh clone
 if [ ! -z "$ELECBUILD_COMMIT" ] ; then
     info "ELECBUILD_COMMIT=$ELECBUILD_COMMIT. doing fresh clone and git checkout."
-    FRESH_CLONE="$CONTRIB_ANDROID/fresh_clone/electrum" && \
+    FRESH_CLONE="$CONTRIB_ANDROID/fresh_clone/electrum-ltc" && \
         rm -rf "$FRESH_CLONE" && \
         umask 0022 && \
         git clone "$PROJECT_ROOT" "$FRESH_CLONE" && \
@@ -74,7 +74,7 @@ docker run -it --rm \
     $DOCKER_RUN_FLAGS \
     --workdir /home/user/wspace/electrum \
     electrum-android-builder-img \
-    ./contrib/android/make_apk.sh "$@"
+    ./contrib/android/make_apk "$@"
 
 # make sure resulting binary location is independent of fresh_clone
 if [ ! -z "$ELECBUILD_COMMIT" ] ; then

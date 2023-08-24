@@ -20,30 +20,40 @@ class TestCommands(ElectrumTestCase):
         self.config = SimpleConfig({'electrum_path': self.electrum_path})
 
     def test_setconfig_non_auth_number(self):
-        self.assertEqual(7777, Commands._setconfig_normalize_value('rpcport', "7777"))
-        self.assertEqual(7777, Commands._setconfig_normalize_value('rpcport', '7777'))
-        self.assertAlmostEqual(Decimal(2.3), Commands._setconfig_normalize_value('somekey', '2.3'))
+        self.assertEqual(
+            7777, Commands._setconfig_normalize_value('rpcport', "7777"))
+        self.assertEqual(
+            7777, Commands._setconfig_normalize_value('rpcport', '7777'))
+        self.assertAlmostEqual(
+            Decimal(2.3), Commands._setconfig_normalize_value('somekey', '2.3'))
 
     def test_setconfig_non_auth_number_as_string(self):
-        self.assertEqual("7777", Commands._setconfig_normalize_value('somekey', "'7777'"))
+        self.assertEqual(
+            "7777", Commands._setconfig_normalize_value('somekey', "'7777'"))
 
     def test_setconfig_non_auth_boolean(self):
-        self.assertEqual(True, Commands._setconfig_normalize_value('show_console_tab', "true"))
-        self.assertEqual(True, Commands._setconfig_normalize_value('show_console_tab', "True"))
+        self.assertEqual(True, Commands._setconfig_normalize_value(
+            'show_console_tab', "true"))
+        self.assertEqual(True, Commands._setconfig_normalize_value(
+            'show_console_tab', "True"))
 
     def test_setconfig_non_auth_list(self):
         self.assertEqual(['file:///var/www/', 'https://electrum.org'],
-            Commands._setconfig_normalize_value('url_rewrite', "['file:///var/www/','https://electrum.org']"))
+                         Commands._setconfig_normalize_value('url_rewrite', "['file:///var/www/','https://electrum.org']"))
         self.assertEqual(['file:///var/www/', 'https://electrum.org'],
-            Commands._setconfig_normalize_value('url_rewrite', '["file:///var/www/","https://electrum.org"]'))
+                         Commands._setconfig_normalize_value('url_rewrite', '["file:///var/www/","https://electrum.org"]'))
 
     def test_setconfig_auth(self):
-        self.assertEqual("7777", Commands._setconfig_normalize_value('rpcuser', "7777"))
-        self.assertEqual("7777", Commands._setconfig_normalize_value('rpcuser', '7777'))
-        self.assertEqual("7777", Commands._setconfig_normalize_value('rpcpassword', '7777'))
-        self.assertEqual("2asd", Commands._setconfig_normalize_value('rpcpassword', '2asd'))
+        self.assertEqual(
+            "7777", Commands._setconfig_normalize_value('rpcuser', "7777"))
+        self.assertEqual(
+            "7777", Commands._setconfig_normalize_value('rpcuser', '7777'))
+        self.assertEqual(
+            "7777", Commands._setconfig_normalize_value('rpcpassword', '7777'))
+        self.assertEqual(
+            "2asd", Commands._setconfig_normalize_value('rpcpassword', '2asd'))
         self.assertEqual("['file:///var/www/','https://electrum.org']",
-            Commands._setconfig_normalize_value('rpcpassword', "['file:///var/www/','https://electrum.org']"))
+                         Commands._setconfig_normalize_value('rpcpassword', "['file:///var/www/','https://electrum.org']"))
 
     def test_eval_bool(self):
         self.assertFalse(eval_bool("False"))
@@ -62,7 +72,8 @@ class TestCommands(ElectrumTestCase):
         }
         for xkey1, xtype1 in xpubs:
             for xkey2, xtype2 in xpubs:
-                self.assertEqual(xkey2, cmds._run('convert_xkey', (xkey1, xtype2)))
+                self.assertEqual(xkey2, cmds._run(
+                    'convert_xkey', (xkey1, xtype2)))
 
         xprvs = {
             ("xprv9yD9r6PJmTgqpGCUf8FUkkAhNTxv4rryiFWkqb5mYQPw8aMDXUzuyJ3tgv5vUqYkdK1E6Q5jKxPss4HkMBYV4q8AfG8t7rxgyS4xQX4ndAm", "standard"),
@@ -71,37 +82,43 @@ class TestCommands(ElectrumTestCase):
         }
         for xkey1, xtype1 in xprvs:
             for xkey2, xtype2 in xprvs:
-                self.assertEqual(xkey2, cmds._run('convert_xkey', (xkey1, xtype2)))
+                self.assertEqual(xkey2, cmds._run(
+                    'convert_xkey', (xkey1, xtype2)))
 
     @mock.patch.object(wallet.Abstract_Wallet, 'save_db')
     def test_encrypt_decrypt(self, mock_save_db):
-        wallet = restore_wallet_from_text('p2wpkh:L4rYY5QpfN6wJEF4SEKDpcGhTPnCe9zcGs6hiSnhpprZqVywFifN',
+        wallet = restore_wallet_from_text('p2wpkh:TAgoypi14k5Y54svysG62xp5QFRWiF1W64zxaFRFPo2jMPSMoa5D',
                                           path='if_this_exists_mocking_failed_648151893',
                                           config=self.config)['wallet']
         cmds = Commands(config=self.config)
         cleartext = "asdasd this is the message"
         pubkey = "021f110909ded653828a254515b58498a6bafc96799fb0851554463ed44ca7d9da"
         ciphertext = cmds._run('encrypt', (pubkey, cleartext))
-        self.assertEqual(cleartext, cmds._run('decrypt', (pubkey, ciphertext), wallet=wallet))
+        self.assertEqual(cleartext, cmds._run(
+            'decrypt', (pubkey, ciphertext), wallet=wallet))
 
     @mock.patch.object(wallet.Abstract_Wallet, 'save_db')
     def test_export_private_key_imported(self, mock_save_db):
-        wallet = restore_wallet_from_text('p2wpkh:L4rYY5QpfN6wJEF4SEKDpcGhTPnCe9zcGs6hiSnhpprZqVywFifN p2wpkh:L4jkdiXszG26SUYvwwJhzGwg37H2nLhrbip7u6crmgNeJysv5FHL',
+        wallet = restore_wallet_from_text('p2wpkh:TAgoypi14k5Y54svysG62xp5QFRWiF1W64zxaFRFPo2jMPSMoa5D p2wpkh:TAa25Tq4PdzhDKBoVaFaCdV3yxvLrRikQviNkuFQLeYopsVvNTV3',
                                           path='if_this_exists_mocking_failed_648151893',
                                           config=self.config)['wallet']
         cmds = Commands(config=self.config)
         # single address tests
         with self.assertRaises(Exception):
-            cmds._run('getprivatekeys', ("asdasd",), wallet=wallet)  # invalid addr, though might raise "not in wallet"
+            # invalid addr, though might raise "not in wallet"
+            cmds._run('getprivatekeys', ("asdasd",), wallet=wallet)
         with self.assertRaises(Exception):
-            cmds._run('getprivatekeys', ("bc1qgfam82qk7uwh5j2xxmcd8cmklpe0zackyj6r23",), wallet=wallet)  # not in wallet
-        self.assertEqual("p2wpkh:L4jkdiXszG26SUYvwwJhzGwg37H2nLhrbip7u6crmgNeJysv5FHL",
-                         cmds._run('getprivatekeys', ("bc1q2ccr34wzep58d4239tl3x3734ttle92a8srmuw",), wallet=wallet))
+            # not in wallet
+            cmds._run(
+                'getprivatekeys', ("ltc1qgfam82qk7uwh5j2xxmcd8cmklpe0zackqwq8jp",), wallet=wallet)
+        self.assertEqual("p2wpkh:TAa25Tq4PdzhDKBoVaFaCdV3yxvLrRikQviNkuFQLeYopsVvNTV3",
+                         cmds._run('getprivatekeys', ("ltc1q2ccr34wzep58d4239tl3x3734ttle92arvely7",), wallet=wallet))
         # list of addresses tests
         with self.assertRaises(Exception):
-            cmds._run('getprivatekeys', (['bc1q2ccr34wzep58d4239tl3x3734ttle92a8srmuw', 'asd'],), wallet=wallet)
-        self.assertEqual(['p2wpkh:L4jkdiXszG26SUYvwwJhzGwg37H2nLhrbip7u6crmgNeJysv5FHL', 'p2wpkh:L4rYY5QpfN6wJEF4SEKDpcGhTPnCe9zcGs6hiSnhpprZqVywFifN'],
-                         cmds._run('getprivatekeys', (['bc1q2ccr34wzep58d4239tl3x3734ttle92a8srmuw', 'bc1q9pzjpjq4nqx5ycnywekcmycqz0wjp2nq604y2n'],), wallet=wallet))
+            cmds._run('getprivatekeys', ([
+                      'ltc1q2ccr34wzep58d4239tl3x3734ttle92arvely7', 'asd'],), wallet=wallet)
+        self.assertEqual(['p2wpkh:TAa25Tq4PdzhDKBoVaFaCdV3yxvLrRikQviNkuFQLeYopsVvNTV3', 'p2wpkh:TAgoypi14k5Y54svysG62xp5QFRWiF1W64zxaFRFPo2jMPSMoa5D'],
+                         cmds._run('getprivatekeys', (['ltc1q2ccr34wzep58d4239tl3x3734ttle92arvely7', 'ltc1q9pzjpjq4nqx5ycnywekcmycqz0wjp2nq7n0qjr'],), wallet=wallet))
 
     @mock.patch.object(wallet.Abstract_Wallet, 'save_db')
     def test_export_private_key_deterministic(self, mock_save_db):
@@ -112,16 +129,20 @@ class TestCommands(ElectrumTestCase):
         cmds = Commands(config=self.config)
         # single address tests
         with self.assertRaises(Exception):
-            cmds._run('getprivatekeys', ("asdasd",), wallet=wallet)  # invalid addr, though might raise "not in wallet"
+            # invalid addr, though might raise "not in wallet"
+            cmds._run('getprivatekeys', ("asdasd",), wallet=wallet)
         with self.assertRaises(Exception):
-            cmds._run('getprivatekeys', ("bc1qgfam82qk7uwh5j2xxmcd8cmklpe0zackyj6r23",), wallet=wallet)  # not in wallet
-        self.assertEqual("p2wpkh:L15oxP24NMNAXxq5r2aom24pHPtt3Fet8ZutgL155Bad93GSubM2",
-                         cmds._run('getprivatekeys', ("bc1q3g5tmkmlvxryhh843v4dz026avatc0zzr6h3af",), wallet=wallet))
+            # not in wallet
+            cmds._run(
+                'getprivatekeys', ("ltc1qgfam82qk7uwh5j2xxmcd8cmklpe0zackqwq8jp",), wallet=wallet)
+        self.assertEqual("p2wpkh:T6v5Q8KEmjLmJoTxPfXfyNcCEFYC7Lfmwmp9Y8dce9knevo9ZkPk",
+                         cmds._run('getprivatekeys', ("ltc1q3g5tmkmlvxryhh843v4dz026avatc0zz8xd49e",), wallet=wallet))
         # list of addresses tests
         with self.assertRaises(Exception):
-            cmds._run('getprivatekeys', (['bc1q3g5tmkmlvxryhh843v4dz026avatc0zzr6h3af', 'asd'],), wallet=wallet)
-        self.assertEqual(['p2wpkh:L15oxP24NMNAXxq5r2aom24pHPtt3Fet8ZutgL155Bad93GSubM2', 'p2wpkh:L4rYY5QpfN6wJEF4SEKDpcGhTPnCe9zcGs6hiSnhpprZqVywFifN'],
-                         cmds._run('getprivatekeys', (['bc1q3g5tmkmlvxryhh843v4dz026avatc0zzr6h3af', 'bc1q9pzjpjq4nqx5ycnywekcmycqz0wjp2nq604y2n'],), wallet=wallet))
+            cmds._run('getprivatekeys', ([
+                      'ltc1q3g5tmkmlvxryhh843v4dz026avatc0zz8xd49e', 'asd'],), wallet=wallet)
+        self.assertEqual(['p2wpkh:T6v5Q8KEmjLmJoTxPfXfyNcCEFYC7Lfmwmp9Y8dce9knevo9ZkPk', 'p2wpkh:TAgoypi14k5Y54svysG62xp5QFRWiF1W64zxaFRFPo2jMPSMoa5D'],
+                         cmds._run('getprivatekeys', (['ltc1q3g5tmkmlvxryhh843v4dz026avatc0zz8xd49e', 'ltc1q9pzjpjq4nqx5ycnywekcmycqz0wjp2nq7n0qjr'],), wallet=wallet))
 
 
 class TestCommandsTestnet(TestCaseForTestnet):
@@ -139,7 +160,8 @@ class TestCommandsTestnet(TestCaseForTestnet):
         }
         for xkey1, xtype1 in xpubs:
             for xkey2, xtype2 in xpubs:
-                self.assertEqual(xkey2, cmds._run('convert_xkey', (xkey1, xtype2)))
+                self.assertEqual(xkey2, cmds._run(
+                    'convert_xkey', (xkey1, xtype2)))
 
         xprvs = {
             ("tprv8c83gxdVUcznP8fMx2iNUBbaQgQC7MUbBUDG3c6YU9xgt7Dn5pfcgHUeNZTAvuYmNgVHjyTzYzGWwJr7GvKCm2FkPaaJipyipbfJeB3tdPW", "standard"),
@@ -148,7 +170,8 @@ class TestCommandsTestnet(TestCaseForTestnet):
         }
         for xkey1, xtype1 in xprvs:
             for xkey2, xtype2 in xprvs:
-                self.assertEqual(xkey2, cmds._run('convert_xkey', (xkey1, xtype2)))
+                self.assertEqual(xkey2, cmds._run(
+                    'convert_xkey', (xkey1, xtype2)))
 
     def test_serialize(self):
         cmds = Commands(config=self.config)
@@ -163,7 +186,7 @@ class TestCommandsTestnet(TestCaseForTestnet):
             ],
             "outputs": [
                 {
-                    "address": "tb1q4s8z6g5jqzllkgt8a4har94wl8tg0k9m8kv5zd",
+                    "address": "tltc1q4s8z6g5jqzllkgt8a4har94wl8tg0k9m77w2jy",
                     "value_sats": 990000
                 }
             ]
@@ -185,7 +208,7 @@ class TestCommandsTestnet(TestCaseForTestnet):
             ],
             "outputs": [
                 {
-                    "address": "tb1q4s8z6g5jqzllkgt8a4har94wl8tg0k9m8kv5zd",
+                    "address": "tltc1q4s8z6g5jqzllkgt8a4har94wl8tg0k9m77w2jy",
                     "value_sats": 990000
                 }
             ]
@@ -216,13 +239,15 @@ class TestCommandsTestnet(TestCaseForTestnet):
         # bootstrap wallet
         funding_tx = Transaction('0200000000010165806607dd458280cb57bf64a16cf4be85d053145227b98c28932e953076b8e20000000000fdffffff02ac150700000000001600147e3ddfe6232e448a8390f3073c7a3b2044fd17eb102908000000000016001427fbe3707bc57e5bb63d6f15733ec88626d8188a02473044022049ce9efbab88808720aa563e2d9bc40226389ab459c4390ea3e89465665d593502206c1c7c30a2f640af1e463e5107ee4cfc0ee22664cfae3f2606a95303b54cdef80121026269e54d06f7070c1f967eb2874ba60de550dfc327a945c98eb773672d9411fd77181e00')
         funding_txid = funding_tx.txid()
-        self.assertEqual('ede61d39e501d65ccf34e6300da439419c43393f793bb9a8a4b06b2d0d80a8a0', funding_txid)
-        wallet.adb.receive_tx_callback(funding_txid, funding_tx, TX_HEIGHT_UNCONFIRMED)
+        self.assertEqual(
+            'ede61d39e501d65ccf34e6300da439419c43393f793bb9a8a4b06b2d0d80a8a0', funding_txid)
+        wallet.receive_tx_callback(
+            funding_txid, funding_tx, TX_HEIGHT_UNCONFIRMED)
 
         cmds = Commands(config=self.config)
         tx_str = cmds._run(
             'payto', (),
-            destination="tb1qsyzgpwa0vg2940u5t6l97etuvedr5dejpf9tdy",
+            destination="tltc1qsyzgpwa0vg2940u5t6l97etuvedr5dejcp84ad",
             amount="0.00123456",
             feerate=50,
             locktime=1972344,
@@ -230,7 +255,8 @@ class TestCommandsTestnet(TestCaseForTestnet):
 
         tx = tx_from_any(tx_str)
         self.assertEqual(2, len(tx.outputs()))
-        txout = TxOutput.from_address_and_value("tb1qsyzgpwa0vg2940u5t6l97etuvedr5dejpf9tdy", 123456)
+        txout = TxOutput.from_address_and_value(
+            "tltc1qsyzgpwa0vg2940u5t6l97etuvedr5dejcp84ad", 123456)
         self.assertTrue(txout in tx.outputs())
         self.assertEqual("02000000000101a0a8800d2d6bb0a4a8b93b793f39439c4139a40d30e634cf5cd601e5391de6ed0100000000fdffffff0240e2010000000000160014810480bbaf62145abf945ebe5f657c665a3a3732462b060000000000160014a5103285eb519f826520a9f7d3227e1eaa7ec5f802473044022057a6f4b1ec63336c7d0ba233e785ec9f2e2d9c2d67617a50e069f4498ee6a3b7022032fb331e0bef06f46e9cb77bfe94413142653c4912516835e941fa7f170c1a53012103001b55f19541faaf7e6d57dd1bdb9fdc37725fc500e12f2418cc11e0aed4154978181e00",
                          tx_str)
@@ -244,16 +270,18 @@ class TestCommandsTestnet(TestCaseForTestnet):
         # bootstrap wallet
         funding_tx = Transaction('02000000000101f59876b1c65bbe3e182ccc7ea7224fe397bb9b70aadcbbf4f4074c75c8a074840000000000fdffffff021f351f00000000001600144eec851dd980cc36af1f629a32325f511604d6af56732d000000000016001439267bc7f3e3fabeae3bc3f73880de22d8b01ba50247304402207eac5f639806a00878488d58ca651d690292145bca5511531845ae21fab309d102207162708bd344840cc1bacff1092e426eb8484f83f5c068ba4ca579813de324540121020e0798c267ff06ee8b838cd465f3cfa6c843a122a04917364ce000c29ca205cae5f31f00')
         funding_txid = funding_tx.txid()
-        self.assertEqual('e8e977bd9c857d84ec1b8f154ae2ee5dfa49fffb7688942a586196c1ad15de15', funding_txid)
-        wallet.adb.receive_tx_callback(funding_txid, funding_tx, TX_HEIGHT_UNCONFIRMED)
+        self.assertEqual(
+            'e8e977bd9c857d84ec1b8f154ae2ee5dfa49fffb7688942a586196c1ad15de15', funding_txid)
+        wallet.receive_tx_callback(
+            funding_txid, funding_tx, TX_HEIGHT_UNCONFIRMED)
 
         cmds = Commands(config=self.config)
         tx_str = cmds._run(
             'paytomany', (),
-            outputs=[["tb1qk3g0t9pw5wctkzz7gh6k3ljfuukn729s67y54e", 0.002],
-                     ["tb1qr7evucrllljtryam6y2k3ntmlptq208pghql2h", "2!"],
-                     ["tb1qs3msqp0n0qade2haanjw2dkaa5lm77vwvce00h", 0.003],
-                     ["tb1qar4ye43tdfj6y5n3yndp9adhs2wuz2v0wgqn5l", "3!"]],
+            outputs=[["tltc1qk3g0t9pw5wctkzz7gh6k3ljfuukn729srkx29s", 0.002],
+                     ["tltc1qr7evucrllljtryam6y2k3ntmlptq208p3lzp67", "2!"],
+                     ["tltc1qs3msqp0n0qade2haanjw2dkaa5lm77vw4sm3l7", 0.003],
+                     ["tltc1qar4ye43tdfj6y5n3yndp9adhs2wuz2v0hqzdyk", "3!"]],
             fee="0.00005000",
             locktime=2094054,
             wallet=wallet)
@@ -282,8 +310,10 @@ class TestCommandsTestnet(TestCaseForTestnet):
         funding_tx = Transaction('01000000014576dacce264c24d81887642b726f5d64aa7825b21b350c7b75a57f337da6845010000006b483045022100a3f8b6155c71a98ad9986edd6161b20d24fad99b6463c23b463856c0ee54826d02200f606017fd987696ebbe5200daedde922eee264325a184d5bbda965ba5160821012102e5c473c051dae31043c335266d0ef89c1daab2f34d885cc7706b267f3269c609ffffffff0240420f00000000001600148a28bddb7f61864bdcf58b2ad13d5aeb3abc3c42a2ddb90e000000001976a914c384950342cb6f8df55175b48586838b03130fad88ac00000000')
         funding_txid = funding_tx.txid()
         funding_output_value = 1000000
-        self.assertEqual('add2535aedcbb5ba79cc2260868bb9e57f328738ca192937f2c92e0e94c19203', funding_txid)
-        wallet.adb.receive_tx_callback(funding_txid, funding_tx, TX_HEIGHT_UNCONFIRMED)
+        self.assertEqual(
+            'add2535aedcbb5ba79cc2260868bb9e57f328738ca192937f2c92e0e94c19203', funding_txid)
+        wallet.receive_tx_callback(
+            funding_txid, funding_tx, TX_HEIGHT_UNCONFIRMED)
 
         cmds = Commands(config=self.config)
 
@@ -301,7 +331,8 @@ class TestCommandsTestnet(TestCaseForTestnet):
 
         funding_tx = Transaction("02000000000102789e8aa8caa79d87241ff9df0e3fd757a07c85a30195d76e8efced1d57c56b670000000000fdffffff7ee2b6abd52b332f797718ae582f8d3b979b83b1799e0a3bfb2c90c6e070c29e0100000000fdffffff020820000000000000160014c0eb720c93a61615d2d66542d381be8943ca553950c3000000000000160014d7dbd0196a2cbd76420f14a19377096cf6cddb75024730440220485b491ad8d3ce3b4da034a851882da84a06ec9800edff0d3fd6aa42eeba3b440220359ea85d32a05932ac417125e133fa54e54e7e9cd20ebc54b883576b8603fd65012103860f1fbf8a482b9d35d7d4d04be8fb33d856a514117cd8b73e372d36895feec60247304402206c2ca56cc030853fa59b4b3cb293f69a3378ead0f10cb76f640f8c2888773461022079b7055d0f6af6952a48e5b97218015b0723462d667765c142b41bd35e3d9c0a01210359e303f57647094a668d69e8ff0bd46c356d00aa7da6dc533c438e71c057f0793e721f00")
         funding_txid = funding_tx.txid()
-        wallet.adb.receive_tx_callback(funding_txid, funding_tx, TX_HEIGHT_UNCONFIRMED)
+        wallet.receive_tx_callback(
+            funding_txid, funding_tx, TX_HEIGHT_UNCONFIRMED)
 
         cmds = Commands(config=self.config)
         tx = "02000000000101b9723dfc69af058ef6613539a000d2cd098a2c8a74e802b6d8739db708ba8c9a0100000000fdffffff02a00f00000000000016001429e1fd187f0cac845946ae1b11dc136c536bfc0fe8b2000000000000160014100611bcb3aee7aad176936cf4ed56ade03027aa02473044022063c05e2347f16251922830ccc757231247b3c2970c225f988e9204844a1ab7b802204652d2c4816707e3d3bea2609b83b079001a435bad2a99cc2e730f276d07070c012102ee3f00141178006c78b0b458aab21588388335078c655459afe544211f15aee050721f00"

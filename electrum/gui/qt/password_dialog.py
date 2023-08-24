@@ -39,7 +39,6 @@ from .util import (icon_path, WindowModalDialog, OkButton, CancelButton, Buttons
 
 
 def check_password_strength(password):
-
     '''
     Check the strength of the password entered by the user and return back the same
     :param password: password entered by user in New Password
@@ -47,11 +46,12 @@ def check_password_strength(password):
     '''
     password = password
     n = math.log(len(set(password)))
-    num = re.search("[0-9]", password) is not None and re.match("^[0-9]*$", password) is None
+    num = re.search(
+        "[0-9]", password) is not None and re.match("^[0-9]*$", password) is None
     caps = password != password.upper() and password != password.lower()
     extra = re.match("^[a-zA-Z0-9]*$", password) is None
     score = len(password)*(n + caps + num + extra)/20
-    password_strength = {0:"Weak",1:"Medium",2:"Strong",3:"Very Strong"}
+    password_strength = {0: "Weak", 1: "Medium", 2: "Strong", 3: "Very Strong"}
     return password_strength[min(3, int(score))]
 
 
@@ -79,7 +79,7 @@ class PasswordLayout(object):
         grid.setSpacing(8)
         grid.setColumnMinimumWidth(0, 150)
         grid.setColumnMinimumWidth(1, 100)
-        grid.setColumnStretch(1,1)
+        grid.setColumnStretch(1, 1)
 
         if kind == PW_PASSPHRASE:
             vbox.addWidget(label)
@@ -88,7 +88,7 @@ class PasswordLayout(object):
             logo_grid = QGridLayout()
             logo_grid.setSpacing(8)
             logo_grid.setColumnMinimumWidth(0, 70)
-            logo_grid.setColumnStretch(1,1)
+            logo_grid.setColumnStretch(1, 1)
 
             logo = QLabel()
             logo.setAlignment(Qt.AlignCenter)
@@ -146,8 +146,8 @@ class PasswordLayout(object):
     def pw_changed(self):
         password = self.new_pw.text()
         if password:
-            colors = {"Weak":"Red", "Medium":"Blue", "Strong":"Green",
-                      "Very Strong":"Green"}
+            colors = {"Weak": "Red", "Medium": "Blue", "Strong": "Green",
+                      "Very Strong": "Green"}
             strength = check_password_strength(password)
             label = (_("Password Strength") + ": " + "<font color="
                      + colors[strength] + ">" + strength + "</font>")
@@ -185,12 +185,12 @@ class PasswordLayoutForHW(object):
         grid.setSpacing(8)
         grid.setColumnMinimumWidth(0, 150)
         grid.setColumnMinimumWidth(1, 100)
-        grid.setColumnStretch(1,1)
+        grid.setColumnStretch(1, 1)
 
         logo_grid = QGridLayout()
         logo_grid.setSpacing(8)
         logo_grid.setColumnMinimumWidth(0, 70)
-        logo_grid.setColumnStretch(1,1)
+        logo_grid.setColumnStretch(1, 1)
 
         logo = QLabel()
         logo.setAlignment(Qt.AlignCenter)
@@ -253,7 +253,8 @@ class ChangePasswordDialogForSW(ChangePasswordDialogBase):
             msg += ' ' + _('Use this dialog to add a password to your wallet.')
         else:
             if not is_encrypted:
-                msg = _('Your bitcoins are password protected. However, your wallet file is not encrypted.')
+                msg = _(
+                    'Your litecoins are password protected. However, your wallet file is not encrypted.')
             else:
                 msg = _('Your wallet is password protected and encrypted.')
             msg += ' ' + _('Use this dialog to change your password.')
@@ -282,7 +283,8 @@ class ChangePasswordDialogForHW(ChangePasswordDialogBase):
             msg = _('Your wallet file is NOT encrypted.')
         else:
             msg = _('Your wallet file is encrypted.')
-        msg += '\n' + _('Note: If you enable this setting, you will need your hardware device to open your wallet.')
+        msg += '\n' + \
+            _('Note: If you enable this setting, you will need your hardware device to open your wallet.')
         msg += '\n' + _('Use this dialog to toggle encryption.')
         self.playout = PasswordLayoutForHW(msg)
 

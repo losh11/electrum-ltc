@@ -155,7 +155,8 @@ class TrezorClientBase(HardwareClientBase, Logger):
             msg = _("Confirm on your {} device to enable passphrases")
         enabled = not self.features.passphrase_protection
         with self.run_flow(msg):
-            trezorlib.device.apply_settings(self.client, use_passphrase=enabled)
+            trezorlib.device.apply_settings(
+                self.client, use_passphrase=enabled)
 
     @runs_in_hwd_thread
     def change_label(self, label):
@@ -272,7 +273,8 @@ class TrezorClientBase(HardwareClientBase, Logger):
 
     def button_request(self, br):
         message = self.msg or MESSAGES.get(br.code) or MESSAGES['default']
-        self.handler.show_message(message.format(self.device), self.client.cancel)
+        self.handler.show_message(message.format(
+            self.device), self.client.cancel)
 
     def get_pin(self, code=None):
         show_strength = True
@@ -284,11 +286,13 @@ class TrezorClientBase(HardwareClientBase, Logger):
         else:
             msg = _("Enter your current {} PIN:")
             show_strength = False
-        pin = self.handler.get_pin(msg.format(self.device), show_strength=show_strength)
+        pin = self.handler.get_pin(msg.format(
+            self.device), show_strength=show_strength)
         if not pin:
             raise Cancelled
         if len(pin) > 9:
-            self.handler.show_error(_('The PIN cannot be longer than 9 characters.'))
+            self.handler.show_error(
+                _('The PIN cannot be longer than 9 characters.'))
             raise Cancelled
         return pin
 
@@ -297,7 +301,7 @@ class TrezorClientBase(HardwareClientBase, Logger):
             msg = _("Enter a passphrase to generate this wallet.  Each time "
                     "you use this wallet your {} will prompt you for the "
                     "passphrase.  If you forget the passphrase you cannot "
-                    "access the bitcoins in the wallet.").format(self.device)
+                    "access the litecoins in the wallet.").format(self.device)
         else:
             msg = _("Enter the passphrase to unlock this wallet:")
 
@@ -310,7 +314,8 @@ class TrezorClientBase(HardwareClientBase, Logger):
         passphrase = bip39_normalize_passphrase(passphrase)
         length = len(passphrase)
         if length > 50:
-            self.handler.show_error(_("Too long passphrase ({} > 50 chars).").format(length))
+            self.handler.show_error(
+                _("Too long passphrase ({} > 50 chars).").format(length))
             raise Cancelled
         return passphrase
 
@@ -329,10 +334,12 @@ class TrezorClientBase(HardwareClientBase, Logger):
             return self._matrix_char
 
         step = 0
+
         def word_callback(_ignored):
             nonlocal step
             step += 1
-            msg = _("Step {}/24.  Enter seed word as explained on your {}:").format(step, self.device)
+            msg = _(
+                "Step {}/24.  Enter seed word as explained on your {}:").format(step, self.device)
             word = self.handler.get_word(msg)
             if not word:
                 raise Cancelled

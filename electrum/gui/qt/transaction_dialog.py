@@ -49,12 +49,11 @@ from electrum.transaction import SerializationError, Transaction, PartialTransac
 from electrum.logging import get_logger
 
 from .util import (MessageBoxMixin, read_QIcon, Buttons, icon_path,
-                   MONOSPACE_FONT, ColorScheme, ButtonsLineEdit, ShowQRLineEdit, text_dialog,
+                   MONOSPACE_FONT, ColorScheme, ButtonsLineEdit, text_dialog,
                    char_width_in_lineedit, TRANSACTION_FILE_EXTENSION_FILTER_SEPARATE,
                    TRANSACTION_FILE_EXTENSION_FILTER_ONLY_COMPLETE_TX,
                    TRANSACTION_FILE_EXTENSION_FILTER_ONLY_PARTIAL_TX,
-                   BlockingWaitingDialog, getSaveFileName, ColorSchemeItem,
-                   get_iconname_qrcode)
+                   BlockingWaitingDialog, getSaveFileName, ColorSchemeItem)
 
 from .fee_slider import FeeSlider, FeeComboBox
 from .confirm_tx_dialog import TxEditor
@@ -69,14 +68,15 @@ class TxSizeLabel(QLabel):
     def setAmount(self, byte_size):
         self.setText(('x   %s bytes   =' % byte_size) if byte_size else '')
 
+
 class TxFiatLabel(QLabel):
     def setAmount(self, fiat_fee):
         self.setText(('≈  %s' % fiat_fee) if fiat_fee else '')
 
+
 class QTextEditWithDefaultSize(QTextEdit):
     def sizeHint(self):
         return QSize(0, 100)
-
 
 
 _logger = get_logger(__name__)
@@ -85,13 +85,14 @@ dialogs = []  # Otherwise python randomly garbage collects the dialogs...
 
 def show_transaction(tx: Transaction, *, parent: 'ElectrumWindow', desc=None, prompt_if_unsaved=False):
     try:
-        d = TxDialog(tx, parent=parent, desc=desc, prompt_if_unsaved=prompt_if_unsaved)
+        d = TxDialog(tx, parent=parent, desc=desc,
+                     prompt_if_unsaved=prompt_if_unsaved)
     except SerializationError as e:
         _logger.exception('unable to deserialize the transaction')
-        parent.show_critical(_("Electrum was unable to deserialize the transaction:") + "\n" + str(e))
+        parent.show_critical(
+            _("Electrum was unable to deserialize the transaction:") + "\n" + str(e))
     else:
         d.show()
-
 
 
 class BaseTxDialog(QDialog, MessageBoxMixin):
@@ -112,7 +113,7 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
         self.saved = False
         self.desc = desc
         self.setMinimumWidth(640)
-        self.resize(1200,600)
+        self.resize(1200, 600)
         self.set_title()
 
         self.psbt_only_widgets = []  # type: List[QWidget]
@@ -121,7 +122,10 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
         self.setLayout(vbox)
 
         vbox.addWidget(QLabel(_("Transaction ID:")))
-        self.tx_hash_e = ShowQRLineEdit('', self.config, title='Transaction ID')
+        self.tx_hash_e = ButtonsLineEdit()
+        self.tx_hash_e.add_qr_show_button(
+            config=self.config, title='Transaction ID')
+        self.tx_hash_e.setReadOnly(True)
         vbox.addWidget(self.tx_hash_e)
 
         self.add_tx_stats(vbox)
@@ -169,11 +173,15 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
         self.export_actions_menu = export_actions_menu = QMenu()
         self.add_export_actions_to_menu(export_actions_menu)
         export_actions_menu.addSeparator()
-        export_submenu = export_actions_menu.addMenu(_("For CoinJoin; strip privates"))
-        self.add_export_actions_to_menu(export_submenu, gettx=self._gettx_for_coinjoin)
+        export_submenu = export_actions_menu.addMenu(
+            _("For CoinJoin; strip privates"))
+        self.add_export_actions_to_menu(
+            export_submenu, gettx=self._gettx_for_coinjoin)
         self.psbt_only_widgets.append(export_submenu)
-        export_submenu = export_actions_menu.addMenu(_("For hardware device; include xpubs"))
-        self.add_export_actions_to_menu(export_submenu, gettx=self._gettx_for_hardware_device)
+        export_submenu = export_actions_menu.addMenu(
+            _("For hardware device; include xpubs"))
+        self.add_export_actions_to_menu(
+            export_submenu, gettx=self._gettx_for_hardware_device)
         self.psbt_only_widgets.append(export_submenu)
 
         self.export_actions_button = QToolButton()
@@ -198,9 +206,11 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
         self.psbt_only_widgets.append(self.partial_tx_actions_button)
 
         # Action buttons
-        self.buttons = [self.partial_tx_actions_button, self.sign_button, self.broadcast_button, self.cancel_button]
+        self.buttons = [self.partial_tx_actions_button,
+                        self.sign_button, self.broadcast_button, self.cancel_button]
         # Transaction sharing buttons
-        self.sharing_buttons = [self.finalize_button, self.export_actions_button, self.save_button]
+        self.sharing_buttons = [self.finalize_button,
+                                self.export_actions_button, self.save_button]
         run_hook('transaction_dialog', self)
         if not self.finalized:
             self.create_fee_controls()
@@ -241,7 +251,7 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
 
     def do_broadcast(self):
         self.main_window.push_top_level_window(self)
-        self.main_window.send_tab.save_pending_invoice()
+        self.main_window.save_pending_invoice()
         try:
             self.main_window.broadcast_transaction(self.tx)
         finally:
@@ -266,13 +276,14 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
 
     def add_export_actions_to_menu(self, menu: QMenu, *, gettx: Callable[[], Transaction] = None) -> None:
         if gettx is None:
-            gettx = lambda: None
+            def gettx(): return None
 
         action = QAction(_("Copy to clipboard"), self)
         action.triggered.connect(lambda: self.copy_to_clipboard(tx=gettx()))
         menu.addAction(action)
 
-        action = QAction(read_QIcon(get_iconname_qrcode()), _("Show as QR code"), self)
+        qr_icon = "qrcode_white.png" if ColorScheme.dark_scheme else "qrcode.png"
+        action = QAction(read_QIcon(qr_icon), _("Show as QR code"), self)
         action.triggered.connect(lambda: self.show_qr(tx=gettx()))
         menu.addAction(action)
 
@@ -282,16 +293,27 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
 
     def _gettx_for_coinjoin(self) -> PartialTransaction:
         if not isinstance(self.tx, PartialTransaction):
-            raise Exception("Can only export partial transactions for coinjoins.")
+            raise Exception(
+                "Can only export partial transactions for coinjoins.")
         tx = copy.deepcopy(self.tx)
         tx.prepare_for_export_for_coinjoin()
         return tx
 
     def _gettx_for_hardware_device(self) -> PartialTransaction:
         if not isinstance(self.tx, PartialTransaction):
-            raise Exception("Can only export partial transactions for hardware device.")
+            raise Exception(
+                "Can only export partial transactions for hardware device.")
         tx = copy.deepcopy(self.tx)
-        tx.prepare_for_export_for_hardware_device(self.wallet)
+        tx.add_info_from_wallet(self.wallet, include_xpubs=True)
+        # log warning if PSBT_*_BIP32_DERIVATION fields cannot be filled with full path due to missing info
+        from electrum.keystore import Xpub
+
+        def is_ks_missing_info(ks):
+            return (isinstance(ks, Xpub) and (ks.get_root_fingerprint() is None
+                                              or ks.get_derivation_prefix() is None))
+        if any([is_ks_missing_info(ks) for ks in self.wallet.get_keystores()]):
+            _logger.warning('PSBT was requested to be filled with full bip32 paths but '
+                            'some keystores lacked either the derivation prefix or the root fingerprint')
         return tx
 
     def copy_to_clipboard(self, *, tx: Transaction = None):
@@ -321,7 +343,8 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
 
         self.sign_button.setDisabled(True)
         self.main_window.push_top_level_window(self)
-        self.main_window.sign_tx(self.tx, callback=sign_done, external_keypairs=self.external_keypairs)
+        self.main_window.sign_tx(
+            self.tx, callback=sign_done, external_keypairs=self.external_keypairs)
 
     def save(self):
         self.main_window.push_top_level_window(self)
@@ -336,7 +359,8 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
         if isinstance(tx, PartialTransaction):
             tx.finalize_psbt()
         txid = tx.txid()
-        suffix = txid[0:8] if txid is not None else time.strftime('%Y%m%d-%H%M')
+        suffix = txid[0:8] if txid is not None else time.strftime(
+            '%Y%m%d-%H%M')
         if tx.is_complete():
             extension = 'txn'
             default_filter = TRANSACTION_FILE_EXTENSION_FILTER_ONLY_COMPLETE_TX
@@ -385,7 +409,8 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
         try:
             self.tx.combine_with_other_psbt(tx)
         except Exception as e:
-            self.show_error(_("Error combining partial transactions") + ":\n" + repr(e))
+            self.show_error(
+                _("Error combining partial transactions") + ":\n" + repr(e))
             return
         self.update()
 
@@ -395,7 +420,8 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
         text = text_dialog(
             parent=self,
             title=_('Input raw transaction'),
-            header_layout=_("Transaction to join with") + " (" + _("add inputs and outputs") + "):",
+            header_layout=_("Transaction to join with") +
+            " (" + _("add inputs and outputs") + "):",
             ok_label=_("Load transaction"),
             config=self.config,
         )
@@ -407,7 +433,8 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
         try:
             self.tx.join_with_other_psbt(tx)
         except Exception as e:
-            self.show_error(_("Error joining partial transactions") + ":\n" + repr(e))
+            self.show_error(
+                _("Error joining partial transactions") + ":\n" + repr(e))
             return
         self.update()
 
@@ -434,12 +461,14 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
                 and txid is not None and fx.is_enabled() and amount is not None):
             tx_item_fiat = self.wallet.get_tx_item_fiat(
                 tx_hash=txid, amount_sat=abs(amount), fx=fx, tx_fee=fee)
-        lnworker_history = self.wallet.lnworker.get_onchain_history() if self.wallet.lnworker else {}
+        lnworker_history = self.wallet.lnworker.get_onchain_history(
+        ) if self.wallet.lnworker else {}
         if txid in lnworker_history:
             item = lnworker_history[txid]
             ln_amount = item['amount_msat'] / 1000
             if amount is None:
-                tx_mined_status = self.wallet.lnworker.lnwatcher.adb.get_tx_height(txid)
+                tx_mined_status = self.wallet.lnworker.lnwatcher.get_tx_height(
+                    txid)
         else:
             ln_amount = None
         self.broadcast_button.setEnabled(tx_details.can_broadcast)
@@ -460,7 +489,8 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
         self.status_label.setText(_('Status:') + ' ' + tx_details.status)
 
         if tx_mined_status.timestamp:
-            time_str = datetime.datetime.fromtimestamp(tx_mined_status.timestamp).isoformat(' ')[:-3]
+            time_str = datetime.datetime.fromtimestamp(
+                tx_mined_status.timestamp).isoformat(' ')[:-3]
             self.date_label.setText(_("Date: {}").format(time_str))
             self.date_label.show()
         elif exp_n is not None:
@@ -478,7 +508,8 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
         self.locktime_final_label.setText(locktime_final_str)
         if self.locktime_e.get_locktime() is None:
             self.locktime_e.set_locktime(self.tx.locktime)
-        self.rbf_label.setText(_('Replace by fee') + f": {not self.tx.is_final()}")
+        self.rbf_label.setText(_('Replace by fee') +
+                               f": {not self.tx.is_final()}")
 
         if tx_mined_status.header_hash:
             self.block_hash_label.setText(_("Included in block: {}")
@@ -494,9 +525,11 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
             amount_str = ''
         else:
             if amount > 0:
-                amount_str = _("Amount received:") + ' %s'% format_amount(amount) + ' ' + base_unit
+                amount_str = _("Amount received:") + \
+                    ' %s' % format_amount(amount) + ' ' + base_unit
             else:
-                amount_str = _("Amount sent:") + ' %s' % format_amount(-amount) + ' ' + base_unit
+                amount_str = _("Amount sent:") + \
+                    ' %s' % format_amount(-amount) + ' ' + base_unit
             if fx.is_enabled():
                 if tx_item_fiat:
                     amount_str += ' (%s)' % tx_item_fiat['fiat_value'].to_ui_string()
@@ -506,7 +539,7 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
             self.amount_label.setText(amount_str)
         else:
             self.amount_label.hide()
-        size_str = _("Size:") + ' %d bytes'% size
+        size_str = _("Size:") + ' %d bytes' % size
         if fee is None:
             fee_str = _("Fee") + ': ' + _("unknown")
         else:
@@ -544,15 +577,18 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
         if ln_amount is None or ln_amount == 0:
             ln_amount_str = ''
         elif ln_amount > 0:
-            ln_amount_str = _('Amount received in channels') + ': ' + format_amount(ln_amount) + ' ' + base_unit
+            ln_amount_str = _('Amount received in channels') + \
+                ': ' + format_amount(ln_amount) + ' ' + base_unit
         else:
             assert ln_amount < 0, f"{ln_amount!r}"
-            ln_amount_str = _('Amount withdrawn from channels') + ': ' + format_amount(-ln_amount) + ' ' + base_unit
+            ln_amount_str = _('Amount withdrawn from channels') + \
+                ': ' + format_amount(-ln_amount) + ' ' + base_unit
         if ln_amount_str:
             self.ln_amount_label.setText(ln_amount_str)
         else:
             self.ln_amount_label.hide()
-        show_psbt_only_widgets = self.finalized and isinstance(self.tx, PartialTransaction)
+        show_psbt_only_widgets = self.finalized and isinstance(
+            self.tx, PartialTransaction)
         for widget in self.psbt_only_widgets:
             if isinstance(widget, QMenu):
                 widget.menuAction().setVisible(show_psbt_only_widgets)
@@ -565,20 +601,24 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
         if tx_details.can_save_as_local:
             self.save_button.setToolTip(_("Save transaction offline"))
         else:
-            self.save_button.setToolTip(_("Transaction already saved or not yet signed."))
+            self.save_button.setToolTip(
+                _("Transaction already saved or not yet signed."))
 
         run_hook('transaction_dialog_update', self)
 
     def update_io(self):
-        inputs_header_text = _("Inputs") + ' (%d)'%len(self.tx.inputs())
+        inputs_header_text = _("Inputs") + ' (%d)' % len(self.tx.inputs())
         if not self.finalized:
             selected_coins = self.main_window.get_manually_selected_coins()
             if selected_coins is not None:
-                inputs_header_text += f"  -  " + _("Coin selection active ({} UTXOs selected)").format(len(selected_coins))
+                inputs_header_text += f"  -  " + \
+                    _("Coin selection active ({} UTXOs selected)").format(
+                        len(selected_coins))
         self.inputs_header.setText(inputs_header_text)
 
         ext = QTextCharFormat()
         tf_used_recv, tf_used_change, tf_used_2fa = False, False, False
+
         def text_format(addr):
             nonlocal tf_used_recv, tf_used_change, tf_used_2fa
             if self.wallet.is_mine(addr):
@@ -608,16 +648,17 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
                 prevout_hash = txin.prevout.txid.hex()
                 prevout_n = txin.prevout.out_idx
                 cursor.insertText(prevout_hash + ":%-4d " % prevout_n, ext)
-                addr = self.wallet.adb.get_txin_address(txin)
+                addr = self.wallet.get_txin_address(txin)
                 if addr is None:
                     addr = ''
                 cursor.insertText(addr, text_format(addr))
-                txin_value = self.wallet.adb.get_txin_value(txin)
+                txin_value = self.wallet.get_txin_value(txin)
                 if txin_value is not None:
                     cursor.insertText(format_amount(txin_value), ext)
             cursor.insertBlock()
 
-        self.outputs_header.setText(_("Outputs") + ' (%d)'%len(self.tx.outputs()))
+        self.outputs_header.setText(
+            _("Outputs") + ' (%d)' % len(self.tx.outputs()))
         o_text = self.outputs_textedit
         o_text.clear()
         o_text.setFont(QFont(MONOSPACE_FONT))
@@ -657,7 +698,8 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
         self.fee_warning_icon = QLabel()
         pixmap = QPixmap(icon_path("warning"))
         pixmap_size = round(2 * char_width_in_lineedit())
-        pixmap = pixmap.scaled(pixmap_size, pixmap_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        pixmap = pixmap.scaled(pixmap_size, pixmap_size,
+                               Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.fee_warning_icon.setPixmap(pixmap)
         self.fee_warning_icon.setVisible(False)
         fee_hbox.addWidget(self.fee_warning_icon)
@@ -718,7 +760,8 @@ class BaseTxDialog(QDialog, MessageBoxMixin):
         self.locktime_setter_widget.setVisible(not self.finalized)
 
     def set_title(self):
-        self.setWindowTitle(_("Create transaction") if not self.finalized else _("Transaction"))
+        self.setWindowTitle(_("Create transaction")
+                            if not self.finalized else _("Transaction"))
 
     def can_finalize(self) -> bool:
         return False
@@ -765,7 +808,8 @@ class TxOutputColoring:
 
 class TxDialog(BaseTxDialog):
     def __init__(self, tx: Transaction, *, parent: 'ElectrumWindow', desc, prompt_if_unsaved):
-        BaseTxDialog.__init__(self, parent=parent, desc=desc, prompt_if_unsaved=prompt_if_unsaved, finalized=True)
+        BaseTxDialog.__init__(self, parent=parent, desc=desc,
+                              prompt_if_unsaved=prompt_if_unsaved, finalized=True)
         self.set_tx(tx)
         self.update()
 
@@ -807,17 +851,22 @@ class PreviewTxDialog(BaseTxDialog, TxEditor):
 
         self.feerate_e = FeerateEdit(lambda: 0)
         self.feerate_e.setAmount(self.config.fee_per_byte())
-        self.feerate_e.textEdited.connect(partial(self.on_fee_or_feerate, self.feerate_e, False))
-        self.feerate_e.editingFinished.connect(partial(self.on_fee_or_feerate, self.feerate_e, True))
+        self.feerate_e.textEdited.connect(
+            partial(self.on_fee_or_feerate, self.feerate_e, False))
+        self.feerate_e.editingFinished.connect(
+            partial(self.on_fee_or_feerate, self.feerate_e, True))
 
         self.fee_e = BTCAmountEdit(self.main_window.get_decimal_point)
-        self.fee_e.textEdited.connect(partial(self.on_fee_or_feerate, self.fee_e, False))
-        self.fee_e.editingFinished.connect(partial(self.on_fee_or_feerate, self.fee_e, True))
+        self.fee_e.textEdited.connect(
+            partial(self.on_fee_or_feerate, self.fee_e, False))
+        self.fee_e.editingFinished.connect(
+            partial(self.on_fee_or_feerate, self.fee_e, True))
 
         self.fee_e.textChanged.connect(self.entry_changed)
         self.feerate_e.textChanged.connect(self.entry_changed)
 
-        self.fee_slider = FeeSlider(self, self.config, self.fee_slider_callback)
+        self.fee_slider = FeeSlider(
+            self, self.config, self.fee_slider_callback)
         self.fee_combo = FeeComboBox(self.fee_slider)
         self.fee_slider.setFixedWidth(self.fee_e.width())
 
@@ -826,7 +875,7 @@ class PreviewTxDialog(BaseTxDialog, TxEditor):
                     _('To somewhat protect your privacy, Electrum tries to create change with similar precision to other outputs.') + ' ' +
                     _('At most 100 satoshis might be lost due to this rounding.') + ' ' +
                     _("You can disable this setting in '{}'.").format(_('Preferences')) + '\n' +
-                    _('Also, dust is not kept as change, but added to the fee.')  + '\n' +
+                    _('Also, dust is not kept as change, but added to the fee.') + '\n' +
                     _('Also, when batching RBF transactions, BIP 125 imposes a lower bound on the fee.'))
             self.show_message(title=_('Fee rounding'), msg=text)
 
@@ -877,11 +926,11 @@ class PreviewTxDialog(BaseTxDialog, TxEditor):
 
     def is_send_fee_frozen(self):
         return self.fee_e.isVisible() and self.fee_e.isModified() \
-               and (self.fee_e.text() or self.fee_e.hasFocus())
+            and (self.fee_e.text() or self.fee_e.hasFocus())
 
     def is_send_feerate_frozen(self):
         return self.feerate_e.isVisible() and self.feerate_e.isModified() \
-               and (self.feerate_e.text() or self.feerate_e.hasFocus())
+            and (self.feerate_e.text() or self.feerate_e.hasFocus())
 
     def set_feerounding_text(self, num_satoshis_added):
         self.feerounding_text = (_('Additional {} satoshis are going to be added.')
@@ -951,9 +1000,11 @@ class PreviewTxDialog(BaseTxDialog, TxEditor):
                 displayed_feerate = quantize_feerate(displayed_feerate)
             elif self.fee_slider.is_active():
                 # fallback to actual fee
-                displayed_feerate = quantize_feerate(fee / size) if fee is not None else None
+                displayed_feerate = quantize_feerate(
+                    fee / size) if fee is not None else None
                 self.feerate_e.setAmount(displayed_feerate)
-            displayed_fee = round(displayed_feerate * size) if displayed_feerate is not None else None
+            displayed_fee = round(
+                displayed_feerate * size) if displayed_feerate is not None else None
             self.fee_e.setAmount(displayed_fee)
         else:
             if freeze_fee:
@@ -963,11 +1014,13 @@ class PreviewTxDialog(BaseTxDialog, TxEditor):
                 displayed_fee = fee
                 self.fee_e.setAmount(displayed_fee)
             displayed_fee = displayed_fee if displayed_fee else 0
-            displayed_feerate = quantize_feerate(displayed_fee / size) if displayed_fee is not None else None
+            displayed_feerate = quantize_feerate(
+                displayed_fee / size) if displayed_fee is not None else None
             self.feerate_e.setAmount(displayed_feerate)
 
         # show/hide fee rounding icon
-        feerounding = (fee - displayed_fee) if (fee and displayed_fee is not None) else 0
+        feerounding = (
+            fee - displayed_fee) if (fee and displayed_fee is not None) else 0
         self.set_feerounding_text(int(feerounding))
         self.feerounding_icon.setToolTip(self.feerounding_text)
         self.feerounding_icon.setVisible(abs(feerounding) >= 1)
@@ -981,7 +1034,6 @@ class PreviewTxDialog(BaseTxDialog, TxEditor):
             return
         assert self.tx
         self.finalized = True
-        self.stop_editor_updates()
         self.tx.set_rbf(self.rbf_cb.isChecked())
         locktime = self.locktime_e.get_locktime()
         if locktime is not None:

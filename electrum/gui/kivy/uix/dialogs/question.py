@@ -45,7 +45,6 @@ Builder.load_string('''
 ''')
 
 
-
 class Question(Factory.Popup):
 
     def __init__(self, msg, callback, *,

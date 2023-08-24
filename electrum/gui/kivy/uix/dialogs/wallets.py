@@ -53,6 +53,7 @@ Builder.load_string('''
                     root.callback(wallet_selector.selection[0])
 ''')
 
+
 class WalletDialog(Factory.Popup):
 
     def __init__(self, path, callback, disable_new):
@@ -63,6 +64,7 @@ class WalletDialog(Factory.Popup):
 
     def new_wallet(self, dirname):
         assert self.disable_new is False
+
         def cb(filename):
             if not filename:
                 return

@@ -50,8 +50,10 @@ if TYPE_CHECKING:
 
 
 ca_path = certifi.where()
-ssl_context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH, cafile=ca_path)
-server = ServerProxy('https://cosigner.electrum.org/', allow_none=True, context=ssl_context)
+ssl_context = ssl.create_default_context(
+    purpose=ssl.Purpose.SERVER_AUTH, cafile=ca_path)
+server = ServerProxy('https://cosigner.electrum.org/',
+                     allow_none=True, context=ssl_context)
 
 
 class Listener(util.DaemonThread):
@@ -131,7 +133,8 @@ class Plugin(BasePlugin):
         wallet = window.wallet
         if type(wallet) != Multisig_Wallet:
             return
-        assert isinstance(wallet, Multisig_Wallet)  # only here for type-hints in IDE
+        # only here for type-hints in IDE
+        assert isinstance(wallet, Multisig_Wallet)
         if self.listener is None:
             self.logger.info("starting listener")
             self.listener = Listener(self)
@@ -144,7 +147,8 @@ class Plugin(BasePlugin):
         self.cosigner_list = []
         for key, keystore in wallet.keystores.items():
             xpub = keystore.get_master_public_key()  # type: str
-            pubkey = BIP32Node.from_xkey(xpub).eckey.get_public_key_bytes(compressed=True)
+            pubkey = BIP32Node.from_xkey(
+                xpub).eckey.get_public_key_bytes(compressed=True)
             _hash = bh2u(crypto.sha256d(pubkey))
             if not keystore.is_watching_only():
                 self.keys.append((key, _hash, window))
@@ -182,11 +186,15 @@ class Plugin(BasePlugin):
         def on_success(result):
             window.show_message(_("Your transaction was sent to the cosigning pool.") + '\n' +
                                 _("Open your cosigner wallet to retrieve it."))
+
         def on_failure(exc_info):
             e = exc_info[1]
-            try: self.logger.error("on_failure", exc_info=exc_info)
-            except OSError: pass
-            window.show_error(_("Failed to send transaction to cosigning pool") + ':\n' + repr(e))
+            try:
+                self.logger.error("on_failure", exc_info=exc_info)
+            except OSError:
+                pass
+            window.show_error(
+                _("Failed to send transaction to cosigning pool") + ':\n' + repr(e))
 
         buffer = []
         some_window = None
@@ -208,7 +216,8 @@ class Plugin(BasePlugin):
             for _hash, message in buffer:
                 server.put(_hash, message)
         msg = _('Sending transaction to cosigning pool...')
-        WaitingDialog(some_window, msg, send_messages_task, on_success, on_failure)
+        WaitingDialog(some_window, msg, send_messages_task,
+                      on_success, on_failure)
 
     def on_receive(self, keyhash, message):
         self.logger.info(f"signal arrived for {keyhash}")
@@ -251,6 +260,7 @@ class Plugin(BasePlugin):
         try:
             tx = tx_from_any(message)
         except SerializationError as e:
-            window.show_error(_("Electrum was unable to deserialize the transaction:") + "\n" + str(e))
+            window.show_error(
+                _("Electrum was unable to deserialize the transaction:") + "\n" + str(e))
             return
         show_transaction(tx, parent=window, prompt_if_unsaved=True)

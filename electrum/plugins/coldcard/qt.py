@@ -1,4 +1,5 @@
-import time, os
+import time
+import os
 from functools import partial
 import copy
 
@@ -22,6 +23,7 @@ from ..hw_wallet.plugin import only_hook_if_libraries_available
 
 CC_DEBUG = False
 
+
 class Plugin(ColdcardPlugin, QtPluginBase):
     icon_unpaired = "coldcard_unpaired.png"
     icon_paired = "coldcard.png"
@@ -38,9 +40,11 @@ class Plugin(ColdcardPlugin, QtPluginBase):
         for keystore in wallet.get_keystores():
             if type(keystore) == self.keystore_class:
                 def show_address(keystore=keystore):
-                    keystore.thread.add(partial(self.show_address, wallet, addrs[0], keystore=keystore))
+                    keystore.thread.add(
+                        partial(self.show_address, wallet, addrs[0], keystore=keystore))
                 device_name = "{} ({})".format(self.device, keystore.label)
-                menu.addAction(_("Show on {}").format(device_name), show_address)
+                menu.addAction(_("Show on {}").format(
+                    device_name), show_address)
 
     @only_hook_if_libraries_available
     @hook
@@ -57,7 +61,8 @@ class Plugin(ColdcardPlugin, QtPluginBase):
             return
 
         btn = QPushButton(_("Export for Coldcard"))
-        btn.clicked.connect(lambda unused: self.export_multisig_setup(main_window, wallet))
+        btn.clicked.connect(
+            lambda unused: self.export_multisig_setup(main_window, wallet))
 
         return btn
 
@@ -75,7 +80,8 @@ class Plugin(ColdcardPlugin, QtPluginBase):
         if fileName:
             with open(fileName, "wt") as f:
                 ColdcardPlugin.export_ms_wallet(wallet, f, basename)
-            main_window.show_message(_("Wallet setup file exported successfully"))
+            main_window.show_message(
+                _("Wallet setup file exported successfully"))
 
     def show_settings_dialog(self, window, keystore):
         # When they click on the icon for CC we come here.
@@ -90,7 +96,8 @@ class Coldcard_Handler(QtHandlerBase):
 
     def message_dialog(self, msg):
         self.clear_dialog()
-        self.dialog = dialog = WindowModalDialog(self.top_level_window(), _("Coldcard Status"))
+        self.dialog = dialog = WindowModalDialog(
+            self.top_level_window(), _("Coldcard Status"))
         l = QLabel(msg)
         vbox = QVBoxLayout(dialog)
         vbox.addWidget(l)
@@ -107,8 +114,8 @@ class CKCCSettingsDialog(WindowModalDialog):
         # Note: Coldcard may **not** be connected at present time. Keep working!
 
         devmgr = plugin.device_manager()
-        #config = devmgr.config
-        #handler = keystore.handler
+        # config = devmgr.config
+        # handler = keystore.handler
         self.thread = thread = keystore.thread
         self.keystore = keystore
         assert isinstance(window, ElectrumWindow), f"{type(window)}"
@@ -136,7 +143,7 @@ class CKCCSettingsDialog(WindowModalDialog):
 <br><a href="https://coldcardwallet.com">coldcardwallet.com</a>''')
         title.setTextInteractionFlags(Qt.LinksAccessibleByMouse)
 
-        grid.addWidget(title, 0,0, 1,2, Qt.AlignHCenter)
+        grid.addWidget(title, 0, 0, 1, 2, Qt.AlignHCenter)
         y = 3
 
         rows = [
@@ -149,16 +156,18 @@ class CKCCSettingsDialog(WindowModalDialog):
         for row_num, (member_name, label) in enumerate(rows):
             # XXX we know xfp already, even if not connected
             widget = QLabel('<tt>000000000000')
-            widget.setTextInteractionFlags(Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard)
+            widget.setTextInteractionFlags(
+                Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard)
 
-            grid.addWidget(QLabel(label), y, 0, 1,1, Qt.AlignRight)
+            grid.addWidget(QLabel(label), y, 0, 1, 1, Qt.AlignRight)
             grid.addWidget(widget, y, 1, 1, 1, Qt.AlignLeft)
             setattr(self, member_name, widget)
             y += 1
         body_layout.addLayout(grid)
 
         upg_btn = QPushButton(_('Upgrade'))
-        #upg_btn.setDefault(False)
+        # upg_btn.setDefault(False)
+
         def _start_upgrade():
             thread.add(connect_and_doit, on_success=self.start_upgrade)
         upg_btn.clicked.connect(_start_upgrade)
@@ -171,7 +180,8 @@ class CKCCSettingsDialog(WindowModalDialog):
         dialog_vbox.addWidget(body)
 
         # Fetch firmware/versions values and show them.
-        thread.add(connect_and_doit, on_success=self.show_values, on_error=self.show_placeholders)
+        thread.add(connect_and_doit, on_success=self.show_values,
+                   on_error=self.show_placeholders)
 
     def show_placeholders(self, unclear_arg):
         # device missing, so hide lots of detail.
@@ -224,13 +234,15 @@ class CKCCSettingsDialog(WindowModalDialog):
                 firmware = fd.read(size)
 
             hpos = FW_HEADER_OFFSET
-            hdr = bytes(firmware[hpos:hpos + FW_HEADER_SIZE])        # needed later too
+            # needed later too
+            hdr = bytes(firmware[hpos:hpos + FW_HEADER_SIZE])
             magic = struct.unpack_from("<I", hdr)[0]
 
             if magic != FW_HEADER_MAGIC:
                 raise ValueError("Bad magic")
         except Exception as exc:
-            self.window.show_error("Does not appear to be a Coldcard firmware file.\n\n%s" % exc)
+            self.window.show_error(
+                "Does not appear to be a Coldcard firmware file.\n\n%s" % exc)
             return
 
         # TODO:
@@ -238,14 +250,16 @@ class CKCCSettingsDialog(WindowModalDialog):
         # - warn them about the reboot?
         # - length checks
         # - add progress local bar
-        self.window.show_message("Ready to Upgrade.\n\nBe patient. Unit will reboot itself when complete.")
+        self.window.show_message(
+            "Ready to Upgrade.\n\nBe patient. Unit will reboot itself when complete.")
 
         def doit():
             dlen, _ = dev.upload_file(firmware, verify=True)
             assert dlen == len(firmware)
 
             # append the firmware header a second time
-            result = dev.send_recv(CCProtocolPacker.upload(size, size+FW_HEADER_SIZE, hdr))
+            result = dev.send_recv(CCProtocolPacker.upload(
+                size, size+FW_HEADER_SIZE, hdr))
 
             # make it reboot into bootlaoder which might install it
             dev.send_recv(CCProtocolPacker.reboot())

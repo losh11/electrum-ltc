@@ -15,20 +15,25 @@ class TestLNTransport(ElectrumTestCase):
     @needs_test_with_all_chacha20_implementations
     def test_responder(self):
         # local static
-        ls_priv=bytes.fromhex('2121212121212121212121212121212121212121212121212121212121212121')
+        ls_priv = bytes.fromhex(
+            '2121212121212121212121212121212121212121212121212121212121212121')
         # ephemeral
-        e_priv=bytes.fromhex('2222222222222222222222222222222222222222222222222222222222222222')
+        e_priv = bytes.fromhex(
+            '2222222222222222222222222222222222222222222222222222222222222222')
 
         class Writer:
             def __init__(self):
                 self.state = 0
+
             def write(self, data):
                 assert self.state == 0
                 self.state += 1
                 assert len(data) == 50
+
         class Reader:
             def __init__(self):
                 self.state = 0
+
             async def read(self, num_bytes):
                 assert self.state in (0, 1)
                 self.state += 1
@@ -50,14 +55,17 @@ class TestLNTransport(ElectrumTestCase):
         initiator_key = ECPrivkey.generate_random_key()
         messages_sent_by_client = [
             b'hello from client',
-            b'long data from client ' + bytes(range(256)) * 100 + b'... client done',
+            b'long data from client ' +
+            bytes(range(256)) * 100 + b'... client done',
             b'client is running out of things to say',
         ]
         messages_sent_by_server = [
             b'hello from server',
             b'hello2 from server',
-            b'long data from server ' + bytes(range(256)) * 100 + b'... server done',
+            b'long data from server ' +
+            bytes(range(256)) * 100 + b'... server done',
         ]
+
         async def read_messages(transport, expected_messages):
             ctr = 0
             async for msg in transport.read_messages():
@@ -65,21 +73,26 @@ class TestLNTransport(ElectrumTestCase):
                 ctr += 1
                 if ctr == len(expected_messages):
                     return
+
         async def write_messages(transport, expected_messages):
             for msg in expected_messages:
                 transport.send_bytes(msg)
                 await asyncio.sleep(0.01)
 
         async def cb(reader, writer):
-            t = LNResponderTransport(responder_key.get_secret_bytes(), reader, writer)
+            t = LNResponderTransport(
+                responder_key.get_secret_bytes(), reader, writer)
             self.assertEqual(await t.handshake(), initiator_key.get_public_key_bytes())
             async with OldTaskGroup() as group:
                 await group.spawn(read_messages(t, messages_sent_by_client))
                 await group.spawn(write_messages(t, messages_sent_by_server))
             responder_shaked.set()
-        async def connect(port: int):
-            peer_addr = LNPeerAddr('127.0.0.1', port, responder_key.get_public_key_bytes())
-            t = LNTransport(initiator_key.get_secret_bytes(), peer_addr, proxy=None)
+
+        async def connect():
+            peer_addr = LNPeerAddr(
+                '127.0.0.1', 42898, responder_key.get_public_key_bytes())
+            t = LNTransport(initiator_key.get_secret_bytes(),
+                            peer_addr, proxy=None)
             await t.handshake()
             async with OldTaskGroup() as group:
                 await group.spawn(read_messages(t, messages_sent_by_server))
@@ -87,11 +100,10 @@ class TestLNTransport(ElectrumTestCase):
             server_shaked.set()
 
         async def f():
-            server = await asyncio.start_server(cb, '127.0.0.1', port=None)
-            server_port = server.sockets[0].getsockname()[1]
+            server = await asyncio.start_server(cb, '127.0.0.1', 42898)
             try:
                 async with OldTaskGroup() as group:
-                    await group.spawn(connect(port=server_port))
+                    await group.spawn(connect())
                     await group.spawn(responder_shaked.wait())
                     await group.spawn(server_shaked.wait())
             finally:

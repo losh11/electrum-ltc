@@ -390,7 +390,7 @@ MIN_FUNDING_SAT = 200_000
 
 # the minimum cltv_expiry accepted for newly received HTLCs
 # note: when changing, consider Blockchain.is_tip_stale()
-MIN_FINAL_CLTV_EXPIRY_ACCEPTED = 144
+MIN_FINAL_CLTV_EXPIRY_ACCEPTED = 576
 # set it a tiny bit higher for invoices as blocks could get mined
 # during forward path of payment
 MIN_FINAL_CLTV_EXPIRY_FOR_INVOICE = MIN_FINAL_CLTV_EXPIRY_ACCEPTED + 3
@@ -401,11 +401,11 @@ NBLOCK_DEADLINE_AFTER_EXPIRY_FOR_OFFERED_HTLCS = 1
 
 # the deadline for received HTLCs this node has fulfilled:
 # the deadline after which the channel has to be failed and the HTLC fulfilled on-chain before its cltv_expiry
-NBLOCK_DEADLINE_BEFORE_EXPIRY_FOR_RECEIVED_HTLCS = 72
+NBLOCK_DEADLINE_BEFORE_EXPIRY_FOR_RECEIVED_HTLCS = 288
 
-NBLOCK_CLTV_EXPIRY_TOO_FAR_INTO_FUTURE = 28 * 144
+NBLOCK_CLTV_EXPIRY_TOO_FAR_INTO_FUTURE = 28 * 576
 
-MAXIMUM_REMOTE_TO_SELF_DELAY_ACCEPTED = 2016
+MAXIMUM_REMOTE_TO_SELF_DELAY_ACCEPTED = 8064
 
 class RevocationStore:
     # closely based on code in lightningnetwork/lnd
@@ -821,8 +821,7 @@ def make_funding_input(local_funding_pubkey: bytes, remote_funding_pubkey: bytes
     c_input._trusted_value_sats = funding_sat
     return c_input
 
-
-class HTLCOwner(IntEnum):
+class HTLCOwner(IntFlag):
     LOCAL = 1
     REMOTE = -LOCAL
 
@@ -833,7 +832,7 @@ class HTLCOwner(IntEnum):
         return HTLCOwner(super().__neg__())
 
 
-class Direction(IntEnum):
+class Direction(IntFlag):
     SENT = -1     # in the context of HTLCs: "offered" HTLCs
     RECEIVED = 1  # in the context of HTLCs: "received" HTLCs
 
@@ -1090,9 +1089,8 @@ class LnFeatures(IntFlag):
     _ln_feature_contexts[OPTION_SUPPORT_LARGE_CHANNEL_OPT] = (LNFC.INIT | LNFC.NODE_ANN)
     _ln_feature_contexts[OPTION_SUPPORT_LARGE_CHANNEL_REQ] = (LNFC.INIT | LNFC.NODE_ANN)
 
-    # This is still a temporary number. Also used by Eclair.
-    OPTION_TRAMPOLINE_ROUTING_REQ = 1 << 148
-    OPTION_TRAMPOLINE_ROUTING_OPT = 1 << 149
+    OPTION_TRAMPOLINE_ROUTING_REQ = 1 << 24
+    OPTION_TRAMPOLINE_ROUTING_OPT = 1 << 25
 
     _ln_feature_contexts[OPTION_TRAMPOLINE_ROUTING_REQ] = (LNFC.INIT | LNFC.NODE_ANN | LNFC.INVOICE)
     _ln_feature_contexts[OPTION_TRAMPOLINE_ROUTING_OPT] = (LNFC.INIT | LNFC.NODE_ANN | LNFC.INVOICE)
@@ -1108,6 +1106,10 @@ class LnFeatures(IntFlag):
 
     _ln_feature_contexts[OPTION_CHANNEL_TYPE_REQ] = (LNFC.INIT | LNFC.NODE_ANN)
     _ln_feature_contexts[OPTION_CHANNEL_TYPE_OPT] = (LNFC.INIT | LNFC.NODE_ANN)
+
+    # temporary
+    OPTION_TRAMPOLINE_ROUTING_REQ_ECLAIR = 1 << 50
+    OPTION_TRAMPOLINE_ROUTING_OPT_ECLAIR = 1 << 51
 
     def validate_transitive_dependencies(self) -> bool:
         # for all even bit set, set corresponding odd bit:
@@ -1177,13 +1179,6 @@ class LnFeatures(IntFlag):
         our_flags = set(list_enabled_bits(self))
         return (flag in our_flags
                 or get_ln_flag_pair_of_bit(flag) in our_flags)
-
-    def get_names(self) -> Sequence[str]:
-        r = []
-        for flag in list_enabled_bits(self):
-            feature_name = LnFeatures(1 << flag).name
-            r.append(feature_name or f"bit_{flag}")
-        return r
 
 
 class ChannelType(IntFlag):

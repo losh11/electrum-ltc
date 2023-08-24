@@ -28,7 +28,7 @@ from unicodedata import normalize
 import hashlib
 import re
 from typing import Tuple, TYPE_CHECKING, Union, Sequence, Optional, Dict, List, NamedTuple
-from functools import lru_cache, wraps
+from functools import lru_cache
 from abc import ABC, abstractmethod
 
 from . import bitcoin, ecc, constants, bip32
@@ -39,8 +39,7 @@ from .bip32 import (convert_bip32_path_to_list_of_uint32, BIP32_PRIME,
                     convert_bip32_intpath_to_strpath, is_xkey_consistent_with_key_origin_info)
 from .ecc import string_to_number
 from .crypto import (pw_decode, pw_encode, sha256, sha256d, PW_HASH_VERSION_LATEST,
-                     SUPPORTED_PW_HASH_VERSIONS, UnsupportedPasswordHashVersion, hash_160,
-                     CiphertextFormatError)
+                     SUPPORTED_PW_HASH_VERSIONS, UnsupportedPasswordHashVersion, hash_160)
 from .util import (InvalidPassword, WalletFileException,
                    BitcoinException, bh2u, bfh, inv_dict, is_hex_str)
 from .mnemonic import Mnemonic, Wordlist, seed_type, is_seed
@@ -55,27 +54,6 @@ if TYPE_CHECKING:
 
 
 class CannotDerivePubkey(Exception): pass
-
-
-def also_test_none_password(check_password_fn):
-    """Decorator for check_password, simply to give a friendlier exception if
-    check_password(x) is called on a keystore that does not have a password set.
-    """
-    @wraps(check_password_fn)
-    def wrapper(self: 'Software_KeyStore', *args):
-        password = args[0]
-        try:
-            return check_password_fn(self, password)
-        except (CiphertextFormatError, InvalidPassword) as e:
-            if password is not None:
-                try:
-                    check_password_fn(self, None)
-                except Exception:
-                    pass
-                else:
-                    raise InvalidPassword("password given but keystore has no password") from e
-            raise
-    return wrapper
 
 
 class KeyStore(Logger, ABC):
@@ -234,8 +212,7 @@ class Software_KeyStore(KeyStore):
         pass
 
     @abstractmethod
-    def check_password(self, password: Optional[str]) -> None:
-        """Raises InvalidPassword if password is not correct"""
+    def check_password(self, password):
         pass
 
     @abstractmethod
@@ -266,7 +243,6 @@ class Imported_KeyStore(Software_KeyStore):
     def can_import(self):
         return True
 
-    @also_test_none_password
     def check_password(self, password):
         pubkey = list(self.keypairs.keys())[0]
         self.get_private_key(pubkey, password)
@@ -523,13 +499,9 @@ class Xpub(MasterPublicKeyMixin):
         child_number_int = der_full[-1] if len(der_full) >= 1 else 0
         child_number_bytes = child_number_int.to_bytes(length=4, byteorder="big")
         fingerprint = bytes(4) if depth == 0 else bip32node.fingerprint
-        bip32node = bip32node._replace(
-            depth=depth,
-            fingerprint=fingerprint,
-            child_number=child_number_bytes,
-            # only put plain xpubs (not ypub/zpub) in PSBTs:
-            xtype="standard",
-        )
+        bip32node = bip32node._replace(depth=depth,
+                                       fingerprint=fingerprint,
+                                       child_number=child_number_bytes)
         return bip32node.to_xpub()
 
     def add_key_origin_from_root_node(self, *, derivation_prefix: str, root_node: BIP32Node):
@@ -604,7 +576,6 @@ class BIP32_KeyStore(Xpub, Deterministic_KeyStore):
     def get_master_private_key(self, password):
         return pw_decode(self.xprv, password, version=self.pw_hash_version)
 
-    @also_test_none_password
     def check_password(self, password):
         xprv = pw_decode(self.xprv, password, version=self.pw_hash_version)
         try:
@@ -771,7 +742,6 @@ class Old_KeyStore(MasterPublicKeyMixin, Deterministic_KeyStore):
         if master_public_key != bfh(self.mpk):
             raise InvalidPassword()
 
-    @also_test_none_password
     def check_password(self, password):
         seed = self.get_hex_seed(password)
         self._check_seed(seed)

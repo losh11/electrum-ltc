@@ -112,7 +112,8 @@ class CrashReporter(BaseCrashReporter, Factory.Popup):
 
     def show_popup(self, title, content):
         popup = Factory.Popup(title=title,
-                              content=Label(text=content, text_size=(Window.size[0] * 3/4, None)),
+                              content=Label(text=content, text_size=(
+                                  Window.size[0] * 3/4, None)),
                               size_hint=(3/4, 3/4))
         popup.open()
 
@@ -125,7 +126,8 @@ class CrashReporter(BaseCrashReporter, Factory.Popup):
                                                                 "/crash.json", timeout=10))
         except (ValueError, ClientError) as e:
             self.logger.warning(f"Error sending crash report. exc={e!r}")
-            self.show_popup(_('Unable to send report'), _("Please check your network connection."))
+            self.show_popup(_('Unable to send report'), _(
+                "Please check your network connection."))
         else:
             self.show_popup(_('Report sent'), response["text"])
             location = response["location"]
@@ -156,7 +158,8 @@ class CrashReporter(BaseCrashReporter, Factory.Popup):
         currentActivity.startActivity(browserIntent)
 
     def show_never(self):
-        self.main_window.electrum_config.set_key(BaseCrashReporter.config_key, False)
+        self.main_window.electrum_config.set_key(
+            BaseCrashReporter.config_key, False)
         self.dismiss()
 
     def get_user_description(self):
@@ -185,12 +188,14 @@ class ExceptionHook(base.ExceptionHandler, Logger):
         # For exceptions in Kivy:
         base.ExceptionManager.add_handler(self)
         # For everything else:
-        sys.excepthook = lambda exctype, value, tb: self.handle_exception(value)
+        sys.excepthook = lambda exctype, value, tb: self.handle_exception(
+            value)
         EarlyExceptionsQueue.set_hook_as_ready()
 
     def handle_exception(self, _inst):
         exc_info = sys.exc_info()
-        self.logger.error('exception caught by crash reporter', exc_info=exc_info)
+        self.logger.error(
+            'exception caught by crash reporter', exc_info=exc_info)
         # Check if this is an exception from within the exception handler:
         import traceback
         for item in traceback.extract_tb(exc_info[2]):

@@ -36,7 +36,8 @@ import aiohttp
 try:
     from . import paymentrequest_pb2 as pb2
 except ImportError:
-    sys.exit("Error: could not find paymentrequest_pb2.py. Create it with 'contrib/generate_payreqpb2.sh'")
+    # sudo apt-get install protobuf-compiler
+    sys.exit("Error: could not find paymentrequest_pb2.py. Create it with 'protoc --proto_path=electrum/ --python_out=electrum/ electrum/paymentrequest.proto'")
 
 from . import bitcoin, constants, ecc, util, transaction, x509, rsakey
 from .util import bh2u, bfh, make_aiohttp_session
@@ -54,19 +55,20 @@ if TYPE_CHECKING:
 _logger = get_logger(__name__)
 
 
-REQUEST_HEADERS = {'Accept': 'application/bitcoin-paymentrequest', 'User-Agent': 'Electrum'}
-ACK_HEADERS = {'Content-Type':'application/bitcoin-payment','Accept':'application/bitcoin-paymentack','User-Agent':'Electrum'}
+REQUEST_HEADERS = {
+    'Accept': 'application/litecoin-paymentrequest', 'User-Agent': 'Electrum'}
+ACK_HEADERS = {'Content-Type': 'application/litecoin-payment',
+               'Accept': 'application/litecoin-paymentack', 'User-Agent': 'Electrum'}
 
 ca_path = certifi.where()
 ca_list = None
 ca_keyID = None
 
+
 def load_ca_list():
     global ca_list, ca_keyID
     if ca_list is None:
         ca_list, ca_keyID = x509.load_certificates(ca_path)
-
-
 
 
 async def get_payment_request(url: str) -> 'PaymentRequest':
@@ -82,7 +84,7 @@ async def get_payment_request(url: str) -> 'PaymentRequest':
                     response.raise_for_status()
                     # Guard against `bitcoin:`-URIs with invalid payment request URLs
                     if "Content-Type" not in response.headers \
-                    or response.headers["Content-Type"] != "application/bitcoin-paymentrequest":
+                            or response.headers["Content-Type"] != "application/litecoin-paymentrequest":
                         data = None
                         error = "payment URL not pointing to a payment request handling server"
                     else:
@@ -117,7 +119,7 @@ class PaymentRequest:
         self.raw = data
         self.error = error  # FIXME overloaded and also used when 'verify' succeeds
         self.parse(data)
-        self.requestor = None # known after verify
+        self.requestor = None  # known after verify
         self.tx = None
 
     def __str__(self):
@@ -147,7 +149,8 @@ class PaymentRequest:
                 # TODO maybe rm restriction but then get_requestor and get_id need changes
                 self.error = "only addresses are allowed as outputs"
                 return
-            self.outputs.append(PartialTxOutput.from_address_and_value(addr, o.amount))
+            self.outputs.append(
+                PartialTxOutput.from_address_and_value(addr, o.amount))
         self.memo = self.details.memo
         self.payment_url = self.details.payment_url
 
@@ -169,7 +172,7 @@ class PaymentRequest:
             return True
         if pr.pki_type in ["x509+sha256", "x509+sha1"]:
             return self.verify_x509(pr)
-        elif pr.pki_type in ["dnssec+btc", "dnssec+ecdsa"]:
+        elif pr.pki_type in ["dnssec+ltc", "dnssec+ecdsa"]:
             return self.verify_dnssec(pr, contacts)
         else:
             self.error = "ERROR: Unsupported PKI Type for Message Signature"
@@ -202,7 +205,8 @@ class PaymentRequest:
         msgBytes = bytearray(s)
         if paymntreq.pki_type == "x509+sha256":
             hashBytes = bytearray(hashlib.sha256(msgBytes).digest())
-            verify = pubkey0.verify(sigBytes, x509.PREFIX_RSA_SHA256 + hashBytes)
+            verify = pubkey0.verify(
+                sigBytes, x509.PREFIX_RSA_SHA256 + hashBytes)
         elif paymntreq.pki_type == "x509+sha1":
             verify = pubkey0.hashAndVerify(sigBytes, msgBytes)
         else:
@@ -211,7 +215,7 @@ class PaymentRequest:
         if not verify:
             self.error = "ERROR: Invalid Signature for Payment Request Data"
             return False
-        ### SIG Verified
+        # SIG Verified
         self.error = 'Signed by Trusted CA: ' + ca.get_common_name()
         return True
 
@@ -222,7 +226,7 @@ class PaymentRequest:
         if info.get('validated') is not True:
             self.error = "Alias verification failed (DNSSEC)"
             return False
-        if pr.pki_type == "dnssec+btc":
+        if pr.pki_type == "dnssec+ltc":
             self.requestor = alias
             address = info.get('address')
             pr.signature = b''
@@ -249,7 +253,7 @@ class PaymentRequest:
         return self.details.expires
 
     def get_amount(self):
-        return sum(map(lambda x:x.value, self.outputs))
+        return sum(map(lambda x: x.value, self.outputs))
 
     def get_address(self):
         o = self.outputs[0]
@@ -346,7 +350,7 @@ def make_unsigned_request(req: 'Invoice'):
 
 
 def sign_request_with_alias(pr, alias, alias_privkey):
-    pr.pki_type = 'dnssec+btc'
+    pr.pki_type = 'dnssec+ltc'
     pr.pki_data = str(alias)
     message = pr.SerializeToString()
     ec_key = ecc.ECPrivkey(alias_privkey)
@@ -369,7 +373,8 @@ def verify_cert_chain(chain):
             if not x.check_ca():
                 raise Exception("ERROR: Supplied CA Certificate Error")
     if not cert_num > 1:
-        raise Exception("ERROR: CA Certificate Chain Not Provided by Payment Processor")
+        raise Exception(
+            "ERROR: CA Certificate Chain Not Provided by Payment Processor")
     # if the root CA is not supplied, add it to the chain
     ca = x509_chain[cert_num-1]
     if ca.getFingerprint() not in ca_list:
@@ -402,7 +407,8 @@ def verify_cert_chain(chain):
         else:
             raise Exception("Algorithm not supported: {}".format(algo))
         if not verify:
-            raise Exception("Certificate not Signed by Provided CA Certificate Chain")
+            raise Exception(
+                "Certificate not Signed by Provided CA Certificate Chain")
 
     return x509_chain[0], ca
 
@@ -429,6 +435,7 @@ def check_ssl_config(config):
         requestor = requestor[2:]
     return requestor
 
+
 def sign_request_with_x509(pr, key_path, cert_path):
     from . import pem
     with open(key_path, 'r', encoding='utf-8') as f:
@@ -453,7 +460,7 @@ def serialize_request(req):  # FIXME this is broken
     requestor = req.get('name')
     if requestor and signature:
         pr.signature = bfh(signature)
-        pr.pki_type = 'dnssec+btc'
+        pr.pki_type = 'dnssec+ltc'
         pr.pki_data = str(requestor)
     return pr
 

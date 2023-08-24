@@ -8,7 +8,7 @@ from kivy.uix.popup import Popup
 from electrum.util import bh2u
 from electrum.logging import Logger
 from electrum.lnutil import LOCAL, REMOTE, format_short_channel_id
-from electrum.lnchannel import AbstractChannel, Channel, ChannelState, ChanCloseOption
+from electrum.lnchannel import AbstractChannel, Channel, ChannelState
 from electrum.gui.kivy.i18n import _
 from electrum.transaction import PartialTxOutput, Transaction
 from electrum.util import NotEnoughFunds, NoDynamicFeeEstimates, format_fee_satoshis, quantize_feerate
@@ -436,13 +436,15 @@ class ChannelBackupPopup(Popup, Logger):
         if not b:
             return
         loop = self.app.wallet.network.asyncio_loop
-        coro = asyncio.run_coroutine_threadsafe(self.app.wallet.lnworker.request_force_close(self.chan.channel_id), loop)
+        coro = asyncio.run_coroutine_threadsafe(
+            self.app.wallet.lnworker.request_force_close(self.chan.channel_id), loop)
         try:
             coro.result(5)
             self.app.show_info(_('Request sent'))
         except Exception as e:
             self.logger.exception("Could not close channel")
-            self.app.show_info(_('Could not close channel: ') + repr(e)) # repr because str(Exception()) == ''
+            # repr because str(Exception()) == ''
+            self.app.show_info(_('Could not close channel: ') + repr(e))
 
     def remove_backup(self):
         msg = _('Delete backup?')
@@ -477,15 +479,19 @@ class ChannelDetailsPopup(Popup, Logger):
         self.remote_csv = chan.config[REMOTE].to_self_delay
         self.initiator = 'Local' if chan.constraints.is_initiator else 'Remote'
         feerate_kw = chan.get_latest_feerate(LOCAL)
-        self.feerate = str(quantize_feerate(Transaction.satperbyte_from_satperkw(feerate_kw)))
-        self.can_send = self.app.format_amount_and_units(chan.available_to_spend(LOCAL) // 1000)
-        self.can_receive = self.app.format_amount_and_units(chan.available_to_spend(REMOTE) // 1000)
+        self.feerate = str(quantize_feerate(
+            Transaction.satperbyte_from_satperkw(feerate_kw)))
+        self.can_send = self.app.format_amount_and_units(
+            chan.available_to_spend(LOCAL) // 1000)
+        self.can_receive = self.app.format_amount_and_units(
+            chan.available_to_spend(REMOTE) // 1000)
         self.is_open = chan.is_open()
         closed = chan.get_closing_height()
         if closed:
             self.closing_txid, closing_height, closing_timestamp = closed
         msg = messages.MSG_NON_TRAMPOLINE_CHANNEL_FROZEN_WITHOUT_GOSSIP
-        self.warning = '' if self.app.wallet.lnworker.channel_db or self.app.wallet.lnworker.is_trampoline_peer(chan.node_id) else _('Warning') + ': ' + msg
+        self.warning = '' if self.app.wallet.lnworker.channel_db or self.app.wallet.lnworker.is_trampoline_peer(
+            chan.node_id) else _('Warning') + ': ' + msg
         self.is_frozen_for_sending = chan.is_frozen_for_sending()
         self.is_frozen_for_receiving = chan.is_frozen_for_receiving()
         self.channel_type = chan.storage['channel_type'].name_minimal
@@ -493,35 +499,35 @@ class ChannelDetailsPopup(Popup, Logger):
 
     def update_action_dropdown(self):
         action_dropdown = self.ids.action_dropdown  # type: ActionDropdown
-        close_options = self.chan.get_close_options()
         options = [
-            ActionButtonOption(text=_('Backup'), func=lambda btn: self.export_backup()),
-            ActionButtonOption(text=_('Close channel'), func=lambda btn: self.close(close_options), enabled=close_options),
-            ActionButtonOption(text=_('Delete'), func=lambda btn: self.remove_channel(), enabled=self.can_be_deleted),
+            ActionButtonOption(
+                text=_('Backup'), func=lambda btn: self.export_backup()),
+            ActionButtonOption(text=_(
+                'Close channel'), func=lambda btn: self.close(), enabled=not self.is_closed),
+            ActionButtonOption(text=_(
+                'Force-close'), func=lambda btn: self.force_close(), enabled=not self.is_closed),
+            ActionButtonOption(text=_(
+                'Delete'), func=lambda btn: self.remove_channel(), enabled=self.can_be_deleted),
         ]
         if not self.chan.is_closed():
             if not self.chan.is_frozen_for_sending():
-                options.append(ActionButtonOption(text=_("Freeze") + "\n(for sending)", func=lambda btn: self.freeze_for_sending()))
+                options.append(ActionButtonOption(text=_(
+                    "Freeze") + "\n(for sending)", func=lambda btn: self.freeze_for_sending()))
             else:
-                options.append(ActionButtonOption(text=_("Unfreeze") + "\n(for sending)", func=lambda btn: self.freeze_for_sending()))
+                options.append(ActionButtonOption(text=_(
+                    "Unfreeze") + "\n(for sending)", func=lambda btn: self.freeze_for_sending()))
             if not self.chan.is_frozen_for_receiving():
-                options.append(ActionButtonOption(text=_("Freeze") + "\n(for receiving)", func=lambda btn: self.freeze_for_receiving()))
+                options.append(ActionButtonOption(text=_(
+                    "Freeze") + "\n(for receiving)", func=lambda btn: self.freeze_for_receiving()))
             else:
-                options.append(ActionButtonOption(text=_("Unfreeze") + "\n(for receiving)", func=lambda btn: self.freeze_for_receiving()))
+                options.append(ActionButtonOption(text=_(
+                    "Unfreeze") + "\n(for receiving)", func=lambda btn: self.freeze_for_receiving()))
         action_dropdown.update(options=options)
 
-    def close(self, close_options):
-        choices = {}
-        if ChanCloseOption.COOP_CLOSE in close_options:
-            choices[0] = _('Cooperative close')
-        if ChanCloseOption.REQUEST_REMOTE_FCLOSE in close_options:
-            choices[1] = _('Request force-close')
-        if ChanCloseOption.LOCAL_FCLOSE in close_options:
-            choices[2] = _('Local force-close')
+    def close(self):
         dialog = ChoiceDialog(
             title=_('Close channel'),
-            choices=choices,
-            key = min(choices.keys()),
+            choices={0: _('Cooperative close'), 1: _('Request force-close')}, key=0,
             callback=self._close,
             description=_(messages.MSG_REQUEST_FORCE_CLOSE),
             keep_choice_order=True)
@@ -529,22 +535,21 @@ class ChannelDetailsPopup(Popup, Logger):
 
     def _close(self, choice):
         loop = self.app.wallet.network.asyncio_loop
-        if choice == 0:
+        if choice == 1:
+            coro = self.app.wallet.lnworker.request_force_close(
+                self.chan.channel_id)
+            msg = _('Request sent')
+        else:
             coro = self.app.wallet.lnworker.close_channel(self.chan.channel_id)
             msg = _('Channel closed')
-        elif choice == 1:
-            coro = self.app.wallet.lnworker.request_force_close(self.chan.channel_id)
-            msg = _('Request sent')
-        elif choice == 2:
-            self.force_close()
-            return
         f = asyncio.run_coroutine_threadsafe(coro, loop)
         try:
             f.result(5)
             self.app.show_info(msg)
         except Exception as e:
             self.logger.exception("Could not close channel")
-            self.app.show_info(_('Could not close channel: ') + repr(e)) # repr because str(Exception()) == ''
+            # repr because str(Exception()) == ''
+            self.app.show_info(_('Could not close channel: ') + repr(e))
 
     def remove_channel(self):
         msg = _('Are you sure you want to delete this channel? This will purge associated transactions from your wallet history.')
@@ -558,18 +563,19 @@ class ChannelDetailsPopup(Popup, Logger):
         self.dismiss()
 
     def export_backup(self):
-        text = self.app.wallet.lnworker.export_channel_backup(self.chan.channel_id)
+        text = self.app.wallet.lnworker.export_channel_backup(
+            self.chan.channel_id)
         # TODO: some messages are duplicated between Kivy and Qt.
         help_text = ' '.join([
             _("Channel backups can be imported in another instance of the same wallet, by scanning this QR code."),
             _("Please note that channel backups cannot be used to restore your channels."),
             _("If you lose your wallet file, the only thing you can do with a backup is to request your channel to be closed, so that your funds will be sent on-chain."),
         ])
-        self.app.qr_dialog(_("Channel Backup " + self.chan.short_id_for_GUI()), text, help_text=help_text)
+        self.app.qr_dialog(
+            _("Channel Backup " + self.chan.short_id_for_GUI()), text, help_text=help_text)
 
     def force_close(self):
-        if ChanCloseOption.LOCAL_FCLOSE not in self.chan.get_close_options():
-            # note: likely channel is already closed, or could be unsafe to do local force-close (e.g. we are toxic)
+        if self.chan.is_closed():
             self.app.show_error(_('Channel already closed'))
             return
         to_self_delay = self.chan.config[REMOTE].to_self_delay
@@ -580,7 +586,8 @@ class ChannelDetailsPopup(Popup, Logger):
             _('It may be imported in another wallet with the same seed.')
         ])
         title = _('Save backup and force-close')
-        data = self.app.wallet.lnworker.export_channel_backup(self.chan.channel_id)
+        data = self.app.wallet.lnworker.export_channel_backup(
+            self.chan.channel_id)
         popup = QRDialog(
             title, data,
             show_text=False,
@@ -602,13 +609,16 @@ class ChannelDetailsPopup(Popup, Logger):
         if not b:
             return
         loop = self.app.wallet.network.asyncio_loop
-        coro = asyncio.run_coroutine_threadsafe(self.app.wallet.lnworker.force_close_channel(self.chan.channel_id), loop)
+        coro = asyncio.run_coroutine_threadsafe(
+            self.app.wallet.lnworker.force_close_channel(self.chan.channel_id), loop)
         try:
             coro.result(1)
-            self.app.show_info(_('Channel closed, you may need to wait at least {} blocks, because of CSV delays'.format(self.chan.config[REMOTE].to_self_delay)))
+            self.app.show_info(_('Channel closed, you may need to wait at least {} blocks, because of CSV delays'.format(
+                self.chan.config[REMOTE].to_self_delay)))
         except Exception as e:
             self.logger.exception("Could not force close channel")
-            self.app.show_info(_('Could not force close channel: ') + repr(e)) # repr because str(Exception()) == ''
+            # repr because str(Exception()) == ''
+            self.app.show_info(_('Could not force close channel: ') + repr(e))
 
     def freeze_for_sending(self):
         lnworker = self.chan.lnworker
@@ -617,7 +627,8 @@ class ChannelDetailsPopup(Popup, Logger):
             self.chan.set_frozen_for_sending(self.is_frozen_for_sending)
             self.update_action_dropdown()
         else:
-            self.app.show_info(messages.MSG_NON_TRAMPOLINE_CHANNEL_FROZEN_WITHOUT_GOSSIP)
+            self.app.show_info(
+                messages.MSG_NON_TRAMPOLINE_CHANNEL_FROZEN_WITHOUT_GOSSIP)
 
     def freeze_for_receiving(self):
         self.is_frozen_for_receiving = not self.is_frozen_for_receiving
@@ -657,14 +668,16 @@ class LightningChannelsDialog(Factory.Popup):
         if not self.app.wallet:
             return
         lnworker = self.app.wallet.lnworker
-        channels = lnworker.get_channel_objects().values() if lnworker else []
-        for i in channels:
+        channels = list(lnworker.channels.values()) if lnworker else []
+        backups = list(lnworker.channel_backups.values()) if lnworker else []
+        for i in channels + backups:
             item = Factory.LightningChannelItem()
             item.screen = self
             item.active = not i.is_closed()
             item.is_backup = i.is_backup()
             item._chan = i
-            item.node_alias = lnworker.get_node_alias(i.node_id) or i.node_id.hex()
+            item.node_alias = lnworker.get_node_alias(
+                i.node_id) or i.node_id.hex()
             self.update_item(item)
             channel_cards.add_widget(item)
         self.update_can_send()
@@ -677,8 +690,10 @@ class LightningChannelsDialog(Factory.Popup):
             return
         n = len([c for c in lnworker.channels.values() if c.is_open()])
         self.num_channels_text = _(f'You have {n} open channels.')
-        self.can_send = self.app.format_amount_and_units(lnworker.num_sats_can_send())
-        self.can_receive = self.app.format_amount_and_units(lnworker.num_sats_can_receive())
+        self.can_send = self.app.format_amount_and_units(
+            lnworker.num_sats_can_send())
+        self.can_receive = self.app.format_amount_and_units(
+            lnworker.num_sats_can_receive())
 
 
 # Swaps should be done in due time which is why we recommend a certain fee.
@@ -720,12 +735,14 @@ class SwapDialog(Factory.Popup):
 
     def update_fee_text(self):
         fee_per_kb = self.config.fee_per_kb()
-        fee_per_b = format_fee_satoshis(fee_per_kb / 1000) if fee_per_kb is not None else "unknown"
+        fee_per_b = format_fee_satoshis(
+            fee_per_kb / 1000) if fee_per_kb is not None else "unknown"
         # eta is -1 when block inclusion cannot be estimated for low fees
         eta = self.config.fee_to_eta(fee_per_kb)
 
         suggest_fee = self.config.eta_target_to_fee(RECOMMEND_BLOCKS_SWAP)
-        suggest_fee_per_b = format_fee_satoshis(suggest_fee / 1000) if suggest_fee is not None else "unknown"
+        suggest_fee_per_b = format_fee_satoshis(
+            suggest_fee / 1000) if suggest_fee is not None else "unknown"
 
         s = 's' if eta > 1 else ''
         if eta > RECOMMEND_BLOCKS_SWAP or eta == -1:
@@ -746,7 +763,8 @@ class SwapDialog(Factory.Popup):
             self.tx = None
             self.ids.ok_button.disabled = True
             return
-        outputs = [PartialTxOutput.from_address_and_value(ln_dummy_address(), onchain_amount)]
+        outputs = [PartialTxOutput.from_address_and_value(
+            ln_dummy_address(), onchain_amount)]
         coins = self.app.wallet.get_spendable_coins(None)
         try:
             self.tx = self.app.wallet.make_unsigned_transaction(
@@ -763,13 +781,15 @@ class SwapDialog(Factory.Popup):
         # this is just to estimate the maximal spendable onchain amount for HTLC
         self.update_tx('!')
         try:
-            max_onchain_spend = self.tx.output_value_for_address(ln_dummy_address())
+            max_onchain_spend = self.tx.output_value_for_address(
+                ln_dummy_address())
         except AttributeError:  # happens if there are no utxos
             max_onchain_spend = 0
         reverse = int(min(self.lnworker.num_sats_can_send(),
                           self.swap_manager.get_max_amount()))
         max_recv_amt_ln = int(self.swap_manager.num_sats_can_receive())
-        max_recv_amt_oc = self.swap_manager.get_send_amount(max_recv_amt_ln, is_reverse=False) or float('inf')
+        max_recv_amt_oc = self.swap_manager.get_send_amount(
+            max_recv_amt_ln, is_reverse=False) or float('inf')
         forward = int(min(max_recv_amt_oc,
                           # maximally supported swap amount by provider
                           self.swap_manager.get_max_amount(),
@@ -812,7 +832,8 @@ class SwapDialog(Factory.Popup):
             # add lockup fees, but the swap amount is position
             pay_amount = position + self.tx.get_fee() if self.tx else 0
             self.ids.send_amount_label.text = \
-                f"{self.fmt_amt(pay_amount)} (onchain)" if self.fmt_amt(pay_amount) else ""
+                f"{self.fmt_amt(pay_amount)} (onchain)" if self.fmt_amt(
+                    pay_amount) else ""
 
             receive_amount = self.swap_manager.get_recv_amount(
                 send_amount=position, is_reverse=False)

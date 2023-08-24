@@ -118,8 +118,6 @@ Builder.load_string('''
 ''')
 
 
-
-
 class ConfirmTxDialog(FeeSliderDialog, Factory.Popup):
 
     def __init__(self, app: 'ElectrumWindow', amount, make_tx, on_pay, *, show_final=True):

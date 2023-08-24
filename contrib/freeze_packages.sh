@@ -13,22 +13,20 @@ else
     SYSTEM_PYTHON=$(which $SYSTEM_PYTHON) || printf ""
 fi
 if [[ ! "$SYSTEM_PYTHON" ]] ; then
-    echo "Please specify which python to use in \$SYSTEM_PYTHON" && exit 1
+    echo "Please specify which python to use in \$SYSTEM_PYTHON" && exit 1;
 fi
 
 which virtualenv > /dev/null 2>&1 || { echo "Please install virtualenv" && exit 1; }
 
 ${SYSTEM_PYTHON} -m hashin -h > /dev/null 2>&1 || { ${SYSTEM_PYTHON} -m pip install hashin; }
 
-for suffix in '' '-hw' '-binaries' '-binaries-mac' '-build-wine' '-build-mac' '-build-base' '-build-appimage' '-build-android'; do
-    reqfile="requirements${suffix}.txt"
-
+for i in '' '-hw' '-binaries' '-binaries-mac' '-build-wine' '-build-mac' '-build-base' '-build-appimage' '-build-android'; do
     rm -rf "$venv_dir"
     virtualenv -p ${SYSTEM_PYTHON} $venv_dir
 
     source $venv_dir/bin/activate
 
-    echo "Installing dependencies... (${reqfile})"
+    echo "Installing dependencies... (requirements${i}.txt)"
 
     # We pin all python packaging tools (pip and friends). Some of our dependencies might
     # pull some of them in (e.g. protobuf->setuptools), and all transitive dependencies
@@ -36,39 +34,22 @@ for suffix in '' '-hw' '-binaries' '-binaries-mac' '-build-wine' '-build-mac' '-
     # that we should explicitly install them now, so that we pin latest versions if possible.
     python -m pip install --upgrade pip setuptools wheel
 
-    python -m pip install -r "$contrib/requirements/${reqfile}" --upgrade
+    python -m pip install -r "$contrib/requirements/requirements${i}.txt" --upgrade
 
     echo "OK."
 
     requirements=$(pip freeze --all)
-
     restricted=$(echo $requirements | ${SYSTEM_PYTHON} $contrib/deterministic-build/find_restricted_dependencies.py)
-    if [ ! -z "$restricted" ]; then
-        python -m pip install $restricted
-        requirements=$(pip freeze --all)
-    fi
+    requirements="$requirements $restricted"
 
-    echo "Generating package hashes... (${reqfile})"
-    rm -f "$contrib/deterministic-build/${reqfile}"
-    touch "$contrib/deterministic-build/${reqfile}"
+    echo "Generating package hashes... (requirements${i}.txt)"
+    rm "$contrib/deterministic-build/requirements${i}.txt"
+    touch "$contrib/deterministic-build/requirements${i}.txt"
 
-    # restrict ourselves to source-only packages.
-    # TODO expand this to all reqfiles...
-    HASHIN_FLAGS=""
-    if [[
-        "${suffix}" == "" ||
-        "${suffix}" == "-build-wine" ||
-        "${suffix}" == "-build-mac" ||
-        "${suffix}" == "-build-appimage" ||
-        "${suffix}" == "-build-android" ||
-        "0" == "1"
-        ]] ;
-    then
-        HASHIN_FLAGS="--python-version source"
-    fi
-
-    echo -e "\r  Hashing requirements for $reqfile..."
-    ${SYSTEM_PYTHON} -m hashin $HASHIN_FLAGS -r "$contrib/deterministic-build/${reqfile}" $requirements
+    for requirement in $requirements; do
+        echo -e "\r  Hashing $requirement..."
+        ${SYSTEM_PYTHON} -m hashin -r "$contrib/deterministic-build/requirements${i}.txt" "${requirement}"
+    done
 
     echo "OK."
 done

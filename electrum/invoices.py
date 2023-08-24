@@ -20,14 +20,16 @@ if TYPE_CHECKING:
 # convention: 'invoices' = outgoing , 'request' = incoming
 
 # status of payment requests
-PR_UNPAID   = 0     # if onchain: invoice amt not reached by txs in mempool+chain. if LN: invoice not paid.
-PR_EXPIRED  = 1     # invoice is unpaid and expiry time reached
-PR_UNKNOWN  = 2     # e.g. invoice not found
-PR_PAID     = 3     # if onchain: paid and mined (1 conf). if LN: invoice is paid.
+# if onchain: invoice amt not reached by txs in mempool+chain. if LN: invoice not paid.
+PR_UNPAID = 0
+PR_EXPIRED = 1     # invoice is unpaid and expiry time reached
+PR_UNKNOWN = 2     # e.g. invoice not found
+PR_PAID = 3     # if onchain: paid and mined (1 conf). if LN: invoice is paid.
 PR_INFLIGHT = 4     # only for LN. payment attempt in progress
-PR_FAILED   = 5     # only for LN. we attempted to pay it, but all attempts failed
-PR_ROUTING  = 6     # only for LN. *unused* atm.
-PR_UNCONFIRMED = 7  # only onchain. invoice is satisfied but tx is not mined yet.
+PR_FAILED = 5     # only for LN. we attempted to pay it, but all attempts failed
+PR_ROUTING = 6     # only for LN. *unused* atm.
+# only onchain. invoice is satisfied but tx is not mined yet.
+PR_UNCONFIRMED = 7
 
 
 pr_color = {
@@ -42,12 +44,12 @@ pr_color = {
 }
 
 pr_tooltips = {
-    PR_UNPAID:_('Unpaid'),
-    PR_PAID:_('Paid'),
-    PR_UNKNOWN:_('Unknown'),
-    PR_EXPIRED:_('Expired'),
-    PR_INFLIGHT:_('In progress'),
-    PR_FAILED:_('Failed'),
+    PR_UNPAID: _('Unpaid'),
+    PR_PAID: _('Paid'),
+    PR_UNKNOWN: _('Unknown'),
+    PR_EXPIRED: _('Expired'),
+    PR_INFLIGHT: _('In progress'),
+    PR_FAILED: _('Failed'),
     PR_ROUTING: _('Computing route...'),
     PR_UNCONFIRMED: _('Unconfirmed'),
 }
@@ -81,25 +83,29 @@ def _decode_outputs(outputs) -> Optional[List[PartialTxOutput]]:
 LN_EXPIRY_NEVER = 100 * 365 * 24 * 60 * 60  # 100 years
 
 
-
 @attr.s
 class Invoice(StoredObject):
 
     # mandatory fields
-    amount_msat = attr.ib(kw_only=True)  # type: Optional[Union[int, str]]  # can be '!' or None
+    # type: Optional[Union[int, str]]  # can be '!' or None
+    amount_msat = attr.ib(kw_only=True)
     message = attr.ib(type=str, kw_only=True)
-    time = attr.ib(type=int, kw_only=True, validator=attr.validators.instance_of(int))  # timestamp of the invoice
-    exp = attr.ib(type=int, kw_only=True, validator=attr.validators.instance_of(int))   # expiration delay (relative). 0 means never
+    time = attr.ib(type=int, kw_only=True, validator=attr.validators.instance_of(
+        int))  # timestamp of the invoice
+    exp = attr.ib(type=int, kw_only=True, validator=attr.validators.instance_of(
+        int))   # expiration delay (relative). 0 means never
 
     # optional fields.
     # an request (incoming) can be satisfied onchain, using lightning or using a swap
     # an invoice (outgoing) is constructed from a source: bip21, bip70, lnaddr
 
     # onchain only
-    outputs = attr.ib(kw_only=True, converter=_decode_outputs)  # type: Optional[List[PartialTxOutput]]
-    height = attr.ib(type=int, kw_only=True, validator=attr.validators.instance_of(int)) # only for receiving
+    # type: Optional[List[PartialTxOutput]]
+    outputs = attr.ib(kw_only=True, converter=_decode_outputs)
+    height = attr.ib(type=int, kw_only=True, validator=attr.validators.instance_of(
+        int))  # only for receiving
     bip70 = attr.ib(type=str, kw_only=True)  # type: Optional[str]
-    #bip70_requestor = attr.ib(type=str, kw_only=True)  # type: Optional[str]
+    # bip70_requestor = attr.ib(type=str, kw_only=True)  # type: Optional[str]
 
     # lightning only
     lightning_invoice = attr.ib(type=str, kw_only=True)  # type: Optional[str]
@@ -114,10 +120,11 @@ class Invoice(StoredObject):
         if status == PR_UNPAID:
             if self.exp > 0 and self.exp != LN_EXPIRY_NEVER:
                 expiration = self.get_expiration_date()
-                status_str = _('Expires') + ' ' + age(expiration, include_seconds=True)
+                status_str = _('Expires') + ' ' + \
+                    age(expiration, include_seconds=True)
         return status_str
 
-    def get_address(self) -> Optional[str]:
+    def get_address(self) -> str:
         """returns the first address, to be displayed in GUI"""
         if self.is_lightning():
             return self._lnaddr.get_fallback_address() or None
@@ -127,28 +134,15 @@ class Invoice(StoredObject):
     def get_outputs(self):
         if self.is_lightning():
             address = self.get_address()
-            amount = self.get_amount_sat()
-            if address and amount is not None:
-                outputs = [PartialTxOutput.from_address_and_value(address, int(amount))]
-            else:
-                outputs = []
+            outputs = [PartialTxOutput.from_address_and_value(
+                address, int(self.get_amount_sat()))] if address else []
         else:
             outputs = self.outputs
         return outputs
 
-    def can_be_paid_onchain(self) -> bool:
-        if self.is_lightning():
-            return bool(self._lnaddr.get_fallback_address())
-        else:
-            return True
-
     def get_expiration_date(self):
         # 0 means never
         return self.exp + self.time if self.exp else 0
-
-    def has_expired(self) -> bool:
-        exp = self.get_expiration_date()
-        return bool(exp) and exp < time.time()
 
     def get_amount_msat(self) -> Union[int, str, None]:
         return self.amount_msat
@@ -169,7 +163,7 @@ class Invoice(StoredObject):
             return amount_msat
         return int(amount_msat // 1000)
 
-    def get_bip21_URI(self, *, include_lightning: bool = False) -> Optional[str]:
+    def get_bip21_URI(self, lightning=None):
         from electrum.util import create_bip21_uri
         addr = self.get_address()
         amount = self.get_amount_sat()
@@ -178,15 +172,13 @@ class Invoice(StoredObject):
         message = self.message
         extra = {}
         if self.time and self.exp:
-            extra['time'] = str(int(self.time))
-            extra['exp'] = str(int(self.exp))
-        lightning = self.lightning_invoice if include_lightning else None
+            extra['time'] = str(self.time)
+            extra['exp'] = str(self.exp)
+        # only if we can receive
         if lightning:
             extra['lightning'] = lightning
         if not addr and lightning:
-            return "bitcoin:?lightning="+lightning
-        if not addr and not lightning:
-            return None
+            return "litecoin:?lightning="+lightning
         uri = create_bip21_uri(addr, amount, message, extra_query_params=extra)
         return str(uri)
 
@@ -259,7 +251,7 @@ class Invoice(StoredObject):
         d = self.to_json()
         d.update({
             'pubkey': self._lnaddr.pubkey.serialize().hex(),
-            'amount_BTC': str(self._lnaddr.amount),
+            'amount_LTC': str(self._lnaddr.amount),
             'rhash': self._lnaddr.paymenthash.hex(),
             'description': self._lnaddr.get_description(),
             'exp': self._lnaddr.get_expiry(),
@@ -276,5 +268,6 @@ class Invoice(StoredObject):
 
 
 def get_id_from_onchain_outputs(outputs: List[PartialTxOutput], *, timestamp: int) -> str:
-    outputs_str = "\n".join(f"{txout.scriptpubkey.hex()}, {txout.value}" for txout in outputs)
+    outputs_str = "\n".join(
+        f"{txout.scriptpubkey.hex()}, {txout.value}" for txout in outputs)
     return sha256d(outputs_str + "%d" % timestamp).hex()[0:10]

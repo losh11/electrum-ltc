@@ -201,7 +201,6 @@ Builder.load_string('''
 ''')
 
 
-
 class AddressPopup(Popup):
 
     def __init__(self, parent, address, balance, status, **kwargs):
@@ -213,7 +212,8 @@ class AddressPopup(Popup):
         self.status = status
         self.script_type = self.app.wallet.get_txin_type(self.address)
         self.balance = self.app.format_amount_and_units(balance)
-        self.address_color, self.address_background_color = address_colors(self.app.wallet, address)
+        self.address_color, self.address_background_color = address_colors(
+            self.app.wallet, address)
         self.is_frozen = self.app.wallet.is_frozen_address(address)
 
     def receive_at(self):
@@ -221,14 +221,16 @@ class AddressPopup(Popup):
         self.parent_dialog.dismiss()
         self.app.switch_to('receive')
         # retry until receive_screen is set
-        Clock.schedule_interval(lambda dt: bool(self.app.receive_screen.set_address(self.address) and False) if self.app.receive_screen else True, 0.1)
+        Clock.schedule_interval(lambda dt: bool(self.app.receive_screen.set_address(
+            self.address) and False) if self.app.receive_screen else True, 0.1)
 
     def do_export(self, pk_label):
         self.app.export_private_keys(pk_label, self.address)
 
     def freeze_address(self):
         self.is_frozen = not self.is_frozen
-        self.app.wallet.set_frozen_state_of_addresses([self.address], freeze=self.is_frozen)
+        self.app.wallet.set_frozen_state_of_addresses(
+            [self.address], freeze=self.is_frozen)
         self.parent_dialog.update()
 
 
@@ -245,7 +247,8 @@ class AddressesDialog(Factory.Popup):
         ci['address'] = addr
         ci['memo'] = label
         ci['amount'] = self.app.format_amount_and_units(balance)
-        ci['status'] = _('Used') if is_used else _('Funded') if balance > 0 else _('Unused')
+        ci['status'] = _('Used') if is_used else _(
+            'Funded') if balance > 0 else _('Unused')
         ci['is_frozen'] = self.app.wallet.is_frozen_address(addr)
         return ci
 
@@ -262,9 +265,9 @@ class AddressesDialog(Factory.Popup):
         n = 0
         cards = []
         for address in _list:
-            label = wallet.get_label_for_address(address)
+            label = wallet.get_label(address)
             balance = sum(wallet.get_addr_balance(address))
-            is_used_and_empty = wallet.adb.is_used(address) and balance == 0
+            is_used_and_empty = wallet.is_used(address) and balance == 0
             if self.show_used == 1 and (balance or is_used_and_empty):
                 continue
             if self.show_used == 2 and balance == 0:

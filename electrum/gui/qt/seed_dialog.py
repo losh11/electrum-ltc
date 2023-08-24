@@ -38,7 +38,7 @@ from electrum import slip39
 
 from .util import (Buttons, OkButton, WWLabel, ButtonsTextEdit, icon_path,
                    EnterButton, CloseButton, WindowModalDialog, ColorScheme,
-                   ChoicesLayout, font_height)
+                   ChoicesLayout)
 from .qrtextedit import ShowQRTextEdit, ScanQRTextEdit
 from .completion_text_edit import CompletionTextEdit
 
@@ -84,8 +84,10 @@ class SeedLayout(QVBoxLayout):
             vbox.addWidget(cb_ext)
         if len(seed_types) >= 2:
             def f(choices_layout):
-                self.seed_type = seed_type_values[choices_layout.selected_index()]
-                self.is_seed = (lambda x: bool(x)) if self.seed_type != 'electrum' else self.saved_is_seed
+                self.seed_type = seed_type_values[choices_layout.selected_index(
+                )]
+                self.is_seed = (lambda x: bool(
+                    x)) if self.seed_type != 'electrum' else self.saved_is_seed
                 self.slip39_current_mnemonic_invalid = None
                 self.seed_status.setText('')
                 self.on_edit()
@@ -111,14 +113,16 @@ class SeedLayout(QVBoxLayout):
 
             checked_index = seed_type_values.index(self.seed_type)
             titles = [t[1] for t in seed_types]
-            clayout = ChoicesLayout(_('Seed type'), titles, on_clicked=f, checked_index=checked_index)
+            clayout = ChoicesLayout(
+                _('Seed type'), titles, on_clicked=f, checked_index=checked_index)
             vbox.addLayout(clayout.layout())
 
         vbox.addLayout(Buttons(OkButton(dialog)))
         if not dialog.exec_():
             return None
         self.is_ext = cb_ext.isChecked() if 'ext' in self.options else False
-        self.seed_type = seed_type_values[clayout.selected_index()] if len(seed_types) >= 2 else 'electrum'
+        self.seed_type = seed_type_values[clayout.selected_index()] if len(
+            seed_types) >= 2 else 'electrum'
 
     def __init__(
             self,
@@ -157,7 +161,7 @@ class SeedLayout(QVBoxLayout):
             self.seed_e.textChanged.connect(self.on_edit)
             self.initialize_completer()
 
-        self.seed_e.setMaximumHeight(max(75, 5 * font_height()))
+        self.seed_e.setMaximumHeight(75)
         hbox = QHBoxLayout()
         if icon:
             logo = QLabel()
@@ -216,7 +220,8 @@ class SeedLayout(QVBoxLayout):
             bip39_english_list = Mnemonic('en').wordlist
             old_list = old_mnemonic.wordlist
             only_old_list = set(old_list) - set(bip39_english_list)
-            self.wordlist = list(bip39_english_list) + list(only_old_list)  # concat both lists
+            self.wordlist = list(bip39_english_list) + \
+                list(only_old_list)  # concat both lists
             self.wordlist.sort()
 
             class CompleterDelegate(QStyledItemDelegate):
@@ -228,7 +233,8 @@ class SeedLayout(QVBoxLayout):
                     # So we color words that are only in old list.
                     if option.text in only_old_list:
                         # yellow bg looks ~ok on both light/dark theme, regardless if (un)selected
-                        option.backgroundBrush = ColorScheme.YELLOW.as_color(background=True)
+                        option.backgroundBrush = ColorScheme.YELLOW.as_color(
+                            background=True)
 
             delegate = CompleterDelegate(self.seed_e)
         else:
@@ -255,8 +261,9 @@ class SeedLayout(QVBoxLayout):
         if self.seed_type == 'bip39':
             from electrum.keystore import bip39_is_checksum_valid
             is_checksum, is_wordlist = bip39_is_checksum_valid(s)
-            status = ('checksum: ' + ('ok' if is_checksum else 'failed')) if is_wordlist else 'unknown wordlist'
-            label = 'BIP39' + ' (%s)'%status
+            status = ('checksum: ' + ('ok' if is_checksum else 'failed')
+                      ) if is_wordlist else 'unknown wordlist'
+            label = 'BIP39' + ' (%s)' % status
         elif self.seed_type == 'slip39':
             self.slip39_mnemonics[self.slip39_mnemonic_index] = s
             try:
@@ -268,11 +275,13 @@ class SeedLayout(QVBoxLayout):
                 share_status = _('Valid.')
                 current_mnemonic_invalid = False
 
-            label = _('SLIP39 share') + ' #%d: %s' % (self.slip39_mnemonic_index + 1, share_status)
+            label = _('SLIP39 share') + \
+                ' #%d: %s' % (self.slip39_mnemonic_index + 1, share_status)
 
             # No need to process mnemonics if the current mnemonic remains invalid after editing.
             if not (self.slip39_current_mnemonic_invalid and current_mnemonic_invalid):
-                self.slip39_seed, seed_status = slip39.process_mnemonics(self.slip39_mnemonics)
+                self.slip39_seed, seed_status = slip39.process_mnemonics(
+                    self.slip39_mnemonics)
                 self.seed_status.setText(seed_status)
             self.slip39_current_mnemonic_invalid = current_mnemonic_invalid
 
@@ -285,7 +294,8 @@ class SeedLayout(QVBoxLayout):
                 msg = ' '.join([
                     '<b>' + _('Warning') + ':</b>  ',
                     _("Looks like you have entered a valid seed of type '{}' but this dialog does not support such seeds.").format(t),
-                    _("If unsure, try restoring as '{}'.").format(_("Standard wallet")),
+                    _("If unsure, try restoring as '{}'.").format(
+                        _("Standard wallet")),
                 ])
                 self.seed_warning.setText(msg)
             else:
@@ -377,10 +387,11 @@ class KeysLayout(QVBoxLayout):
 class SeedDialog(WindowModalDialog):
 
     def __init__(self, parent, seed, passphrase, *, config: 'SimpleConfig'):
-        WindowModalDialog.__init__(self, parent, ('Electrum - ' + _('Seed')))
+        WindowModalDialog.__init__(
+            self, parent, ('Electrum-LTC - ' + _('Seed')))
         self.setMinimumWidth(400)
         vbox = QVBoxLayout(self)
-        title =  _("Your wallet generation seed is:")
+        title = _("Your wallet generation seed is:")
         slayout = SeedLayout(
             title=title,
             seed=seed,

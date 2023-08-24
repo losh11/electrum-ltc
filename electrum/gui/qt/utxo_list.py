@@ -86,13 +86,17 @@ class UTXOList(MyTreeView):
             self._utxo_dict[name] = utxo
             address = utxo.address
             height = utxo.block_height
-            name_short = utxo.prevout.txid.hex()[:16] + '...' + ":%d" % utxo.prevout.out_idx
-            amount = self.parent.format_amount(utxo.value_sats(), whitespaces=True)
-            labels = [name_short, address, '', amount, '%d'%height]
+            name_short = utxo.prevout.txid.hex(
+            )[:16] + '...' + ":%d" % utxo.prevout.out_idx
+            amount = self.parent.format_amount(
+                utxo.value_sats(), whitespaces=True)
+            labels = [name_short, address, '', amount, '%d' % height]
             utxo_item = [QStandardItem(x) for x in labels]
             self.set_editability(utxo_item)
-            utxo_item[self.Columns.OUTPOINT].setData(name, self.ROLE_CLIPBOARD_DATA)
-            utxo_item[self.Columns.OUTPOINT].setData(name, self.ROLE_PREVOUT_STR)
+            utxo_item[self.Columns.OUTPOINT].setData(
+                name, self.ROLE_CLIPBOARD_DATA)
+            utxo_item[self.Columns.OUTPOINT].setData(
+                name, self.ROLE_PREVOUT_STR)
             utxo_item[self.Columns.ADDRESS].setFont(QFont(MONOSPACE_FONT))
             utxo_item[self.Columns.AMOUNT].setFont(QFont(MONOSPACE_FONT))
             utxo_item[self.Columns.OUTPOINT].setFont(QFont(MONOSPACE_FONT))
@@ -108,17 +112,19 @@ class UTXOList(MyTreeView):
             coins = self._filter_frozen_coins(coins)
             amount = sum(x.value_sats() for x in coins)
             amount_str = self.parent.format_amount_and_units(amount)
-            num_outputs_str = _("{} outputs available ({} total)").format(len(coins), len(self._utxo_dict))
-            self.parent.set_coincontrol_msg(_("Coin control active") + f': {num_outputs_str}, {amount_str}')
+            num_outputs_str = _("{} outputs available ({} total)").format(
+                len(coins), len(self._utxo_dict))
+            self.parent.set_coincontrol_msg(
+                _("Coin control active") + f': {num_outputs_str}, {amount_str}')
         else:
             self.parent.set_coincontrol_msg(None)
 
     def refresh_row(self, key, row):
-        assert row is not None
         utxo = self._utxo_dict[key]
         utxo_item = [self.std_model.item(row, col) for col in self.Columns]
         address = utxo.address
-        label = self.wallet.get_label_for_txid(utxo.prevout.txid.hex()) or self.wallet.get_label_for_address(address)
+        label = self.wallet.get_label_for_txid(
+            utxo.prevout.txid.hex()) or self.wallet.get_label(address)
         utxo_item[self.Columns.LABEL].setText(label)
         SELECTED_TO_SPEND_TOOLTIP = _('Coin selected to be spent')
         if key in (self._spend_set or set()):
@@ -131,11 +137,14 @@ class UTXOList(MyTreeView):
             col.setBackground(color)
             col.setToolTip(tooltip)
         if self.wallet.is_frozen_address(address):
-            utxo_item[self.Columns.ADDRESS].setBackground(ColorScheme.BLUE.as_color(True))
+            utxo_item[self.Columns.ADDRESS].setBackground(
+                ColorScheme.BLUE.as_color(True))
             utxo_item[self.Columns.ADDRESS].setToolTip(_('Address is frozen'))
         if self.wallet.is_frozen_coin(utxo):
-            utxo_item[self.Columns.OUTPOINT].setBackground(ColorScheme.BLUE.as_color(True))
-            utxo_item[self.Columns.OUTPOINT].setToolTip(f"{key}\n{_('Coin is frozen')}")
+            utxo_item[self.Columns.OUTPOINT].setBackground(
+                ColorScheme.BLUE.as_color(True))
+            utxo_item[self.Columns.OUTPOINT].setToolTip(
+                f"{key}\n{_('Coin is frozen')}")
 
     def get_selected_outpoints(self) -> Optional[List[str]]:
         if not self.model():
@@ -163,7 +172,8 @@ class UTXOList(MyTreeView):
         if self._spend_set is None:
             return None
         utxos = [self._utxo_dict[x] for x in self._spend_set]
-        return copy.deepcopy(utxos)  # copy so that side-effects don't affect utxo_dict
+        # copy so that side-effects don't affect utxo_dict
+        return copy.deepcopy(utxos)
 
     def _maybe_reset_spend_list(self, current_wallet_utxos: Sequence[PartialTxInput]) -> None:
         if self._spend_set is None:
@@ -178,10 +188,12 @@ class UTXOList(MyTreeView):
         if selected is None:
             return
         menu = QMenu()
-        menu.setSeparatorsCollapsible(True)  # consecutive separators are merged together
+        # consecutive separators are merged together
+        menu.setSeparatorsCollapsible(True)
         coins = [self._utxo_dict[name] for name in selected]
         if len(coins) == 0:
-            menu.addAction(_("Spend (select none)"), lambda: self.set_spend_list(coins))
+            menu.addAction(_("Spend (select none)"),
+                           lambda: self.set_spend_list(coins))
         else:
             menu.addAction(_("Spend"), lambda: self.set_spend_list(coins))
 
@@ -193,7 +205,8 @@ class UTXOList(MyTreeView):
             tx = self.wallet.db.get_transaction(txid)
             if tx:
                 label = self.wallet.get_label_for_txid(txid)
-                menu.addAction(_("Details"), lambda: self.parent.show_transaction(tx, tx_desc=label))
+                menu.addAction(
+                    _("Details"), lambda: self.parent.show_transaction(tx, tx_desc=label))
             # "Copy ..."
             idx = self.indexAt(position)
             if not idx.isValid():
@@ -201,33 +214,45 @@ class UTXOList(MyTreeView):
             self.add_copy_menu(menu, idx)
             # "Freeze coin"
             if not self.wallet.is_frozen_coin(utxo):
-                menu.addAction(_("Freeze Coin"), lambda: self.parent.set_frozen_state_of_coins([utxo], True))
+                menu.addAction(
+                    _("Freeze Coin"), lambda: self.parent.set_frozen_state_of_coins([utxo], True))
             else:
                 menu.addSeparator()
-                menu.addAction(_("Coin is frozen"), lambda: None).setEnabled(False)
-                menu.addAction(_("Unfreeze Coin"), lambda: self.parent.set_frozen_state_of_coins([utxo], False))
+                menu.addAction(_("Coin is frozen"),
+                               lambda: None).setEnabled(False)
+                menu.addAction(
+                    _("Unfreeze Coin"), lambda: self.parent.set_frozen_state_of_coins([utxo], False))
                 menu.addSeparator()
             # "Freeze address"
             if not self.wallet.is_frozen_address(addr):
-                menu.addAction(_("Freeze Address"), lambda: self.parent.set_frozen_state_of_addresses([addr], True))
+                menu.addAction(
+                    _("Freeze Address"), lambda: self.parent.set_frozen_state_of_addresses([addr], True))
             else:
                 menu.addSeparator()
-                menu.addAction(_("Address is frozen"), lambda: None).setEnabled(False)
-                menu.addAction(_("Unfreeze Address"), lambda: self.parent.set_frozen_state_of_addresses([addr], False))
+                menu.addAction(_("Address is frozen"),
+                               lambda: None).setEnabled(False)
+                menu.addAction(
+                    _("Unfreeze Address"), lambda: self.parent.set_frozen_state_of_addresses([addr], False))
                 menu.addSeparator()
         elif len(coins) > 1:  # multiple items selected
             menu.addSeparator()
             addrs = [utxo.address for utxo in coins]
-            is_coin_frozen = [self.wallet.is_frozen_coin(utxo) for utxo in coins]
-            is_addr_frozen = [self.wallet.is_frozen_address(utxo.address) for utxo in coins]
+            is_coin_frozen = [
+                self.wallet.is_frozen_coin(utxo) for utxo in coins]
+            is_addr_frozen = [self.wallet.is_frozen_address(
+                utxo.address) for utxo in coins]
             if not all(is_coin_frozen):
-                menu.addAction(_("Freeze Coins"), lambda: self.parent.set_frozen_state_of_coins(coins, True))
+                menu.addAction(
+                    _("Freeze Coins"), lambda: self.parent.set_frozen_state_of_coins(coins, True))
             if any(is_coin_frozen):
-                menu.addAction(_("Unfreeze Coins"), lambda: self.parent.set_frozen_state_of_coins(coins, False))
+                menu.addAction(
+                    _("Unfreeze Coins"), lambda: self.parent.set_frozen_state_of_coins(coins, False))
             if not all(is_addr_frozen):
-                menu.addAction(_("Freeze Addresses"), lambda: self.parent.set_frozen_state_of_addresses(addrs, True))
+                menu.addAction(
+                    _("Freeze Addresses"), lambda: self.parent.set_frozen_state_of_addresses(addrs, True))
             if any(is_addr_frozen):
-                menu.addAction(_("Unfreeze Addresses"), lambda: self.parent.set_frozen_state_of_addresses(addrs, False))
+                menu.addAction(
+                    _("Unfreeze Addresses"), lambda: self.parent.set_frozen_state_of_addresses(addrs, False))
 
         menu.exec_(self.viewport().mapToGlobal(position))
 

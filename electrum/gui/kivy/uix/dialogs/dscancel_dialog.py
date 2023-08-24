@@ -65,6 +65,7 @@ Builder.load_string('''
                     root.on_ok()
 ''')
 
+
 class DSCancelDialog(Factory.Popup):
 
     def __init__(self, app: 'ElectrumWindow', fee, size, callback):
@@ -75,22 +76,27 @@ class DSCancelDialog(Factory.Popup):
         self.callback = callback
         self.config = app.electrum_config
         self.mempool = self.config.use_mempool_fees()
-        self.dynfees = self.config.is_dynfee() and bool(self.app.network) and self.config.has_dynamic_fees_ready()
-        self.ids.old_fee.value = self.app.format_amount_and_units(self.init_fee)
-        self.ids.old_feerate.value = self.app.format_fee_rate(fee / self.tx_size * 1000)
+        self.dynfees = self.config.is_dynfee() and bool(
+            self.app.network) and self.config.has_dynamic_fees_ready()
+        self.ids.old_fee.value = self.app.format_amount_and_units(
+            self.init_fee)
+        self.ids.old_feerate.value = self.app.format_fee_rate(
+            fee / self.tx_size * 1000)
         self.update_slider()
         self.update_text()
 
     def update_text(self):
         pos = int(self.ids.slider.value)
         new_fee_rate = self.get_fee_rate()
-        text, tooltip = self.config.get_fee_text(pos, self.dynfees, self.mempool, new_fee_rate)
+        text, tooltip = self.config.get_fee_text(
+            pos, self.dynfees, self.mempool, new_fee_rate)
         self.ids.tooltip1.text = text
         self.ids.tooltip2.text = tooltip
 
     def update_slider(self):
         slider = self.ids.slider
-        maxp, pos, fee_rate = self.config.get_fee_slider(self.dynfees, self.mempool)
+        maxp, pos, fee_rate = self.config.get_fee_slider(
+            self.dynfees, self.mempool)
         slider.range = (0, maxp)
         slider.step = 1
         slider.value = pos
@@ -98,7 +104,8 @@ class DSCancelDialog(Factory.Popup):
     def get_fee_rate(self) -> Optional[int]:
         pos = int(self.ids.slider.value)
         if self.dynfees:
-            fee_rate = self.config.depth_to_fee(pos) if self.mempool else self.config.eta_to_fee(pos)
+            fee_rate = self.config.depth_to_fee(
+                pos) if self.mempool else self.config.eta_to_fee(pos)
         else:
             fee_rate = self.config.static_fee(pos)
         return fee_rate  # sat/kbyte

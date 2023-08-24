@@ -21,8 +21,6 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 import re
-from typing import Optional, Tuple
-
 import dns
 import threading
 from dns.exception import DNSException
@@ -94,7 +92,7 @@ class Contacts(dict, Logger):
                 'type': 'openalias',
                 'validated': validated
             }
-        raise Exception("Invalid Bitcoin address or alias", k)
+        raise Exception("Invalid Litecoin address or alias", k)
 
     def fetch_openalias(self, config):
         self.alias_info = None
@@ -108,7 +106,7 @@ class Contacts(dict, Logger):
             t.daemon = True
             t.start()
 
-    def resolve_openalias(self, url: str) -> Optional[Tuple[str, str, bool]]:
+    def resolve_openalias(self, url):
         # support email-style addresses, per the OA standard
         url = url.replace('@', '.')
         try:
@@ -116,7 +114,7 @@ class Contacts(dict, Logger):
         except DNSException as e:
             self.logger.info(f'Error resolving openalias: {repr(e)}')
             return None
-        prefix = 'btc'
+        prefix = 'ltc'
         for record in records:
             string = to_string(record.strings[0], 'utf8')
             if string.startswith('oa1:' + prefix):
@@ -134,7 +132,7 @@ class Contacts(dict, Logger):
             return regex.search(haystack).groups()[0]
         except AttributeError:
             return None
-
+            
     def _validate(self, data):
         for k, v in list(data.items()):
             if k == 'contacts':

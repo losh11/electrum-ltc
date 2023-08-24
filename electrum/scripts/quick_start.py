@@ -15,7 +15,8 @@ from electrum.util import create_and_start_event_loop, log_exceptions
 
 loop, stopping_fut, loop_thread = create_and_start_event_loop()
 
-config = SimpleConfig({"testnet": True})  # to use ~/.electrum/testnet as datadir
+# to use ~/.electrum-ltc/testnet as datadir
+config = SimpleConfig({"testnet": True})
 constants.set_testnet()  # to set testnet magic bytes
 daemon = Daemon(config, listen_jsonrpc=False)
 network = daemon.network
@@ -33,8 +34,10 @@ wallet.start_network(network)
 
 # you can use ~CLI commands by accessing command_runner
 command_runner = Commands(config=config, daemon=daemon, network=network)
-print("balance", network.run_from_another_thread(command_runner.getbalance(wallet=wallet)))
-print("addr",    network.run_from_another_thread(command_runner.getunusedaddress(wallet=wallet)))
+print("balance", network.run_from_another_thread(
+    command_runner.getbalance(wallet=wallet)))
+print("addr",    network.run_from_another_thread(
+    command_runner.getunusedaddress(wallet=wallet)))
 print("gettx",   network.run_from_another_thread(
     command_runner.gettransaction("bd3a700b2822e10a034d110c11a596ee7481732533eb6aca7f9ca02911c70a4f")))
 
@@ -42,6 +45,7 @@ print("gettx",   network.run_from_another_thread(
 # but you might as well interact with the underlying methods directly
 print("balance", wallet.get_balance())
 print("addr",    wallet.get_unused_address())
-print("gettx",   network.run_from_another_thread(network.get_transaction("bd3a700b2822e10a034d110c11a596ee7481732533eb6aca7f9ca02911c70a4f")))
+print("gettx",   network.run_from_another_thread(network.get_transaction(
+    "bd3a700b2822e10a034d110c11a596ee7481732533eb6aca7f9ca02911c70a4f")))
 
 stopping_fut.set_result(1)  # to stop event loop

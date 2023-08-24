@@ -72,13 +72,15 @@ class TrezorKeyStore(Hardware_KeyStore):
     plugin: 'TrezorPlugin'
 
     def decrypt_message(self, sequence, message, password):
-        raise UserFacingException(_('Encryption and decryption are not implemented by {}').format(self.device))
+        raise UserFacingException(
+            _('Encryption and decryption are not implemented by {}').format(self.device))
 
     def sign_message(self, sequence, message, password, *, script_type=None):
         client = self.get_client()
-        address_path = self.get_derivation_prefix() + "/%d/%d"%sequence
+        address_path = self.get_derivation_prefix() + "/%d/%d" % sequence
         script_type = self.plugin.get_trezor_input_script_type(script_type)
-        msg_sig = client.sign_message(address_path, message, script_type=script_type)
+        msg_sig = client.sign_message(
+            address_path, message, script_type=script_type)
         return msg_sig.signature
 
     def sign_transaction(self, tx, password):
@@ -118,7 +120,8 @@ class TrezorPlugin(HW_PluginBase):
     keystore_class = TrezorKeyStore
     minimum_library = (0, 13, 0)
     maximum_library = (0, 14)
-    SUPPORTED_XTYPES = ('standard', 'p2wpkh-p2sh', 'p2wpkh', 'p2wsh-p2sh', 'p2wsh')
+    SUPPORTED_XTYPES = ('standard', 'p2wpkh-p2sh',
+                        'p2wpkh', 'p2wsh-p2sh', 'p2wsh')
     DEVICE_IDS = (TREZOR_PRODUCT_KEY,)
 
     MAX_LABEL_LEN = 32
@@ -205,20 +208,24 @@ class TrezorPlugin(HW_PluginBase):
         return client
 
     def get_coin_name(self):
-        return "Testnet" if constants.net.TESTNET else "Bitcoin"
+        return "Testnet" if constants.net.TESTNET else "Litecoin"
 
     def initialize_device(self, device_id, wizard, handler):
         # Initialization method
-        msg = _("Choose how you want to initialize your {}.").format(self.device, self.device)
+        msg = _("Choose how you want to initialize your {}.").format(
+            self.device, self.device)
         choices = [
             # Must be short as QT doesn't word-wrap radio button text
             (TIM_NEW, _("Let the device generate a completely new seed randomly")),
             (TIM_RECOVER, _("Recover from a seed you have previously written down")),
         ]
+
         def f(method):
             import threading
-            settings = self.request_trezor_init_settings(wizard, method, device_id)
-            t = threading.Thread(target=self._initialize_device_safe, args=(settings, method, device_id, wizard, handler))
+            settings = self.request_trezor_init_settings(
+                wizard, method, device_id)
+            t = threading.Thread(target=self._initialize_device_safe, args=(
+                settings, method, device_id, wizard, handler))
             t.daemon = True
             t.start()
             exit_code = wizard.loop.exec_()
@@ -227,12 +234,14 @@ class TrezorPlugin(HW_PluginBase):
                 # of leaving the device in an initialized state when finishing.
                 # signal that this is not the case:
                 raise UserCancelled()
-        wizard.choice_dialog(title=_('Initialize Device'), message=msg, choices=choices, run_next=f)
+        wizard.choice_dialog(title=_('Initialize Device'),
+                             message=msg, choices=choices, run_next=f)
 
     def _initialize_device_safe(self, settings, method, device_id, wizard, handler):
         exit_code = 0
         try:
-            self._initialize_device(settings, method, device_id, wizard, handler)
+            self._initialize_device(
+                settings, method, device_id, wizard, handler)
         except UserCancelled:
             exit_code = 1
         except BaseException as e:
@@ -259,7 +268,8 @@ class TrezorPlugin(HW_PluginBase):
             raise Exception(_("The device was disconnected."))
 
         if method == TIM_NEW:
-            strength_from_word_count = {12: 128, 18: 192, 20: 128, 24: 256, 33: 256}
+            strength_from_word_count = {
+                12: 128, 18: 192, 20: 128, 24: 256, 33: 256}
             client.reset_device(
                 strength=strength_from_word_count[settings.word_count],
                 passphrase_protection=settings.passphrase_enabled,
@@ -292,7 +302,8 @@ class TrezorPlugin(HW_PluginBase):
 
     def setup_device(self, device_info, wizard, purpose):
         device_id = device_info.device.id_
-        client = self.scan_and_create_client_for_device(device_id=device_id, wizard=wizard)
+        client = self.scan_and_create_client_for_device(
+            device_id=device_id, wizard=wizard)
 
         if not client.is_uptodate():
             msg = (_('Outdated {} firmware for device labelled {}. Please '
@@ -310,8 +321,10 @@ class TrezorPlugin(HW_PluginBase):
 
     def get_xpub(self, device_id, derivation, xtype, wizard):
         if xtype not in self.SUPPORTED_XTYPES:
-            raise ScriptTypeNotSupported(_('This type of script is not supported with {}.').format(self.device))
-        client = self.scan_and_create_client_for_device(device_id=device_id, wizard=wizard)
+            raise ScriptTypeNotSupported(
+                _('This type of script is not supported with {}.').format(self.device))
+        client = self.scan_and_create_client_for_device(
+            device_id=device_id, wizard=wizard)
         xpub = client.get_xpub(derivation, xtype)
         client.used()
         return xpub
@@ -354,7 +367,8 @@ class TrezorPlugin(HW_PluginBase):
 
     @runs_in_hwd_thread
     def sign_transaction(self, keystore, tx: PartialTransaction, prev_tx):
-        prev_tx = {bfh(txhash): self.electrum_tx_to_txtype(tx) for txhash, tx in prev_tx.items()}
+        prev_tx = {bfh(txhash): self.electrum_tx_to_txtype(tx)
+                   for txhash, tx in prev_tx.items()}
         client = self.get_client(keystore)
         inputs = self.tx_inputs(tx, for_sig=True, keystore=keystore)
         outputs = self.tx_outputs(tx, keystore=keystore)
@@ -375,7 +389,7 @@ class TrezorPlugin(HW_PluginBase):
             return
         deriv_suffix = wallet.get_address_index(address)
         derivation = keystore.get_derivation_prefix()
-        address_path = "%s/%d/%d"%(derivation, *deriv_suffix)
+        address_path = "%s/%d/%d" % (derivation, *deriv_suffix)
         script_type = self.get_trezor_input_script_type(wallet.txin_type)
 
         # prepare multisig, if available:
@@ -411,10 +425,14 @@ class TrezorPlugin(HW_PluginBase):
                     assert isinstance(txin, PartialTxInput)
                     assert keystore
                     if len(txin.pubkeys) > 1:
-                        xpubs_and_deriv_suffixes = get_xpubs_and_der_suffixes_from_txinout(tx, txin)
-                        txinputtype.multisig = self._make_multisig(txin.num_sig, xpubs_and_deriv_suffixes)
-                    txinputtype.script_type = self.get_trezor_input_script_type(txin.script_type)
-                    my_pubkey, full_path = keystore.find_my_pubkey_in_txinout(txin)
+                        xpubs_and_deriv_suffixes = get_xpubs_and_der_suffixes_from_txinout(
+                            tx, txin)
+                        txinputtype.multisig = self._make_multisig(
+                            txin.num_sig, xpubs_and_deriv_suffixes)
+                    txinputtype.script_type = self.get_trezor_input_script_type(
+                        txin.script_type)
+                    my_pubkey, full_path = keystore.find_my_pubkey_in_txinout(
+                        txin)
                     if full_path:
                         txinputtype.address_n = full_path
 
@@ -440,8 +458,10 @@ class TrezorPlugin(HW_PluginBase):
         def create_output_by_derivation():
             script_type = self.get_trezor_output_script_type(txout.script_type)
             if len(txout.pubkeys) > 1:
-                xpubs_and_deriv_suffixes = get_xpubs_and_der_suffixes_from_txinout(tx, txout)
-                multisig = self._make_multisig(txout.num_sig, xpubs_and_deriv_suffixes)
+                xpubs_and_deriv_suffixes = get_xpubs_and_der_suffixes_from_txinout(
+                    tx, txout)
+                multisig = self._make_multisig(
+                    txout.num_sig, xpubs_and_deriv_suffixes)
             else:
                 multisig = None
             my_pubkey, full_path = keystore.find_my_pubkey_in_txinout(txout)
@@ -464,7 +484,8 @@ class TrezorPlugin(HW_PluginBase):
                 return TxOutputType(
                     amount=txout.value,
                     script_type=OutputScriptType.PAYTOOPRETURN,
-                    op_return_data=trezor_validate_op_return_output_and_get_data(txout),
+                    op_return_data=trezor_validate_op_return_output_and_get_data(
+                        txout),
                 )
 
         outputs = []

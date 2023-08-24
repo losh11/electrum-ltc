@@ -84,6 +84,7 @@ Builder.load_string('''
                     root.on_ok()
 ''')
 
+
 class BumpFeeDialog(FeeSliderDialog, Factory.Popup):
 
     def __init__(self, app: 'ElectrumWindow', fee, size, callback):
@@ -94,8 +95,10 @@ class BumpFeeDialog(FeeSliderDialog, Factory.Popup):
         self.tx_size = size
         self.callback = callback
         self.config = app.electrum_config
-        self.ids.old_fee.value = self.app.format_amount_and_units(self.init_fee)
-        self.ids.old_feerate.value = self.app.format_fee_rate(fee / self.tx_size * 1000)
+        self.ids.old_fee.value = self.app.format_amount_and_units(
+            self.init_fee)
+        self.ids.old_feerate.value = self.app.format_fee_rate(
+            fee / self.tx_size * 1000)
         self.update_slider()
         self.update_text()
 

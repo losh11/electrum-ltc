@@ -12,7 +12,7 @@ from electrum.simple_config import SimpleConfig
 try:
     addr = sys.argv[1]
 except Exception:
-    print("usage: get_history <bitcoin_address>")
+    print("usage: get_history <litecoin_address>")
     sys.exit(1)
 
 config = SimpleConfig()
@@ -20,6 +20,7 @@ config = SimpleConfig()
 loop, stopping_fut, loop_thread = create_and_start_event_loop()
 network = Network(config)
 network.start()
+
 
 @log_exceptions
 async def f():

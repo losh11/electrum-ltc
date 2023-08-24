@@ -4,7 +4,7 @@ built in NFC adapter of some android phones.
 
 from kivy.app import App
 from kivy.clock import Clock
-#Detect which platform we are on
+# Detect which platform we are on
 from kivy.utils import platform
 if platform != 'android':
     raise ImportError
@@ -29,7 +29,6 @@ NdefRecord = autoclass('android.nfc.NdefRecord')
 NdefMessage = autoclass('android.nfc.NdefMessage')
 
 app = None
-
 
 
 class ScannerAndroid(NFCBase):
@@ -59,14 +58,14 @@ class ScannerAndroid(NFCBase):
         # specify that we want our activity to remain on top when a new intent
         # is fired
         self.nfc_pending_intent = PendingIntent.getActivity(context, 0,
-            Intent(context, context.getClass()).addFlags(
-                Intent.FLAG_ACTIVITY_SINGLE_TOP), 0)
+                                                            Intent(context, context.getClass()).addFlags(
+                                                                Intent.FLAG_ACTIVITY_SINGLE_TOP), 0)
 
         # Filter for different types of action, by default we enable all.
         # These are only for handling different NFC technologies when app is in foreground
         self.ndef_detected = IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED)
-        #self.tech_detected = IntentFilter(NfcAdapter.ACTION_TECH_DISCOVERED)
-        #self.tag_detected = IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED)
+        # self.tech_detected = IntentFilter(NfcAdapter.ACTION_TECH_DISCOVERED)
+        # self.tag_detected = IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED)
 
         # setup tag discovery for ourt tag type
         try:
@@ -85,24 +84,26 @@ class ScannerAndroid(NFCBase):
         details = {}
 
         try:
-            #print 'id'
-            details['uid'] = ':'.join(['{:02x}'.format(bt & 0xff) for bt in tag.getId()])
-            #print 'technologies'
-            details['Technologies'] = tech_list = [tech.split('.')[-1] for tech in tag.getTechList()]
-            #print 'get NDEF tag details'
+            # print 'id'
+            details['uid'] = ':'.join(
+                ['{:02x}'.format(bt & 0xff) for bt in tag.getId()])
+            # print 'technologies'
+            details['Technologies'] = tech_list = [
+                tech.split('.')[-1] for tech in tag.getTechList()]
+            # print 'get NDEF tag details'
             ndefTag = cast('android.nfc.tech.Ndef', Ndef.get(tag))
-            #print 'tag size'
+            # print 'tag size'
             details['MaxSize'] = ndefTag.getMaxSize()
-            #details['usedSize'] = '0'
-            #print 'is tag writable?'
+            # details['usedSize'] = '0'
+            # print 'is tag writable?'
             details['writable'] = ndefTag.isWritable()
-            #print 'Data format'
+            # print 'Data format'
             # Can be made readonly
             # get NDEF message details
             ndefMesg = ndefTag.getCachedNdefMessage()
             # get size of current records
             details['consumed'] = len(ndefMesg.toByteArray())
-            #print 'tag type'
+            # print 'tag type'
             details['Type'] = ndefTag.getType()
 
             # check if tag is empty
@@ -110,16 +111,16 @@ class ScannerAndroid(NFCBase):
                 details['Message'] = None
                 return details
 
-            ndefrecords =  ndefMesg.getRecords()
+            ndefrecords = ndefMesg.getRecords()
             length = len(ndefrecords)
-            #print 'length', length
+            # print 'length', length
             # will contain the NDEF record types
             recTypes = []
             for record in ndefrecords:
                 recTypes.append({
                     'type': ''.join(map(chr, record.getType())),
                     'payload': ''.join(map(chr, record.getPayload()))
-                    })
+                })
 
             details['recTypes'] = recTypes
         except Exception as err:
@@ -131,20 +132,21 @@ class ScannerAndroid(NFCBase):
         ''' This function is called when the application receives a
         new intent, for the ones the application has registered previously,
         either in the manifest or in the foreground dispatch setup in the
-        nfc_init function above.
+        nfc_init function above. 
         '''
 
         action_list = (NfcAdapter.ACTION_NDEF_DISCOVERED,)
         # get TAG
-        #tag = cast('android.nfc.Tag', intent.getParcelableExtra(NfcAdapter.EXTRA_TAG))
+        # tag = cast('android.nfc.Tag', intent.getParcelableExtra(NfcAdapter.EXTRA_TAG))
 
-        #details = self.get_ndef_details(tag)
+        # details = self.get_ndef_details(tag)
 
         if intent.getAction() not in action_list:
             print('unknow action, avoid.')
             return
 
-        rawmsgs = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES)
+        rawmsgs = intent.getParcelableArrayExtra(
+            NfcAdapter.EXTRA_NDEF_MESSAGES)
         if not rawmsgs:
             return
         for message in rawmsgs:
@@ -193,7 +195,6 @@ class ScannerAndroid(NFCBase):
 
         return NdefMessage(records)
 
-
     @run_on_ui_thread
     def disable_foreground_dispatch(self):
         '''Disable foreground dispatch when app is paused.
@@ -205,15 +206,15 @@ class ScannerAndroid(NFCBase):
         '''Start listening for new tags
         '''
         self.nfc_adapter.enableForegroundDispatch(self.j_context,
-                self.nfc_pending_intent, self.ndef_exchange_filters, self.ndef_tech_list)
+                                                  self.nfc_pending_intent, self.ndef_exchange_filters, self.ndef_tech_list)
 
     @run_on_ui_thread
     def _nfc_enable_ndef_exchange(self, data):
         # Enable p2p exchange
         # Create record
         ndef_record = NdefRecord(
-                NdefRecord.TNF_MIME_MEDIA,
-                'org.electrum.kivy', '', data)
+            NdefRecord.TNF_MIME_MEDIA,
+            'org.electrum.kivy', '', data)
 
         # Create message
         ndef_message = NdefMessage([ndef_record])
@@ -223,7 +224,7 @@ class ScannerAndroid(NFCBase):
 
         # Enable dispatch
         self.nfc_adapter.enableForegroundDispatch(self.j_context,
-                self.nfc_pending_intent, self.ndef_exchange_filters, [])
+                                                  self.nfc_pending_intent, self.ndef_exchange_filters, [])
 
     @run_on_ui_thread
     def _nfc_disable_ndef_exchange(self):
