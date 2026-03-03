@@ -1,4 +1,3 @@
-import os
 import base64
 import json
 from typing import Optional, TYPE_CHECKING
@@ -91,7 +90,13 @@ class Jade_Client(HardwareClientBase):
 
     @staticmethod
     def _network() -> str:
-        return 'localtest' if constants.net.NET_NAME == 'regtest' else constants.net.NET_NAME
+        net_name = constants.net.NET_NAME
+        if net_name == 'regtest':
+            return 'localtest-litecoin'
+        elif net_name == 'testnet':
+            return 'testnet-litecoin'
+        else:
+            return 'litecoin'
 
     ADDRTYPES = {'standard': 'pkh(k)',
                  'p2pkh': 'pkh(k)',
@@ -110,21 +115,21 @@ class Jade_Client(HardwareClientBase):
     def __init__(self, device: str, plugin: HW_PluginBase):
         HardwareClientBase.__init__(self, plugin=plugin)
 
-        # Connect with a small timeout to test connection
-        self.jade = JadeAPI.create_serial(device, timeout=1)
-        self.jade.connect()
+        # Probe with a small timeout so device scanning does not block for long.
+        probe = JadeAPI.create_serial(device, timeout=1)
+        probe.connect()
+        promoted_probe = False
+        try:
+            verinfo = probe.get_version_info()
+            self.fwversion = _versiontuple(verinfo['JADE_VERSION'])
+            self.efusemac = verinfo['EFUSEMAC']
 
-        verinfo = self.jade.get_version_info()
-        self.fwversion = _versiontuple(verinfo['JADE_VERSION'])
-        self.efusemac = verinfo['EFUSEMAC']
-        self.jade.disconnect()
-
-        # Reconnect with the default timeout for all subsequent calls
-        self.jade = JadeAPI.create_serial(device)
-        self.jade.connect()
-
-        # Push some host entropy into jade
-        self.jade.add_entropy(os.urandom(32))
+            # Keep this connection for discovery/wizard checks using short timeout.
+            self.jade = probe
+            promoted_probe = True
+        finally:
+            if not promoted_probe:
+                probe.disconnect()
 
     @runs_in_hwd_thread
     def authenticate(self):
@@ -191,7 +196,7 @@ class Jade_Client(HardwareClientBase):
             message = message.decode('utf-8')
 
         # Signature verification does not work with anti-exfil, so stick with default (rfc6979)
-        sig = self.jade.sign_message(path, message)
+        sig = self.jade.sign_message(path, message, network=self._network())
         return base64.b64decode(sig, validate=True)
 
     @runs_in_hwd_thread

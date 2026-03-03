@@ -59,9 +59,16 @@ class JadeSerialImpl:
             except serial.serialutil.SerialException:
                 raise JadeError(1, "Unable to open port", self.device)
 
-        # Ensure RTS and DTR are not set (as this can cause the hw to reboot)
-        self.ser.setRTS(False)
-        self.ser.setDTR(False)
+        # Ensure RTS and DTR are not set (as this can cause the hw to reboot).
+        # Apply to all serial device paths (macOS commonly uses /dev/cu.*).
+        try:
+            self.ser.setRTS(False)
+            self.ser.setDTR(False)
+        except Exception as e:
+            logger.debug('Unable to clear RTS/DTR on connect: %r', e)
+
+        # Flush any stale data in the input buffer
+        self.ser.reset_input_buffer()
 
         logger.info('Connected')
 
@@ -70,8 +77,11 @@ class JadeSerialImpl:
 
         # Ensure RTS and DTR are not set (as this can cause the hw to reboot)
         # and then close the connection
-        self.ser.setRTS(False)
-        self.ser.setDTR(False)
+        try:
+            self.ser.setRTS(False)
+            self.ser.setDTR(False)
+        except Exception as e:
+            logger.debug('Unable to clear RTS/DTR on disconnect: %r', e)
         self.ser.close()
 
         # Reset state

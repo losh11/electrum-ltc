@@ -853,7 +853,8 @@ class JadeAPI:
             base58 encoded xpub
         """
         params = {'network': network, 'path': path}
-        return self._jadeRpc('get_xpub', params)
+        # Exporting xpub can require explicit user confirmation on device.
+        return self._jadeRpc('get_xpub', params, long_timeout=True)
 
     def get_registered_multisigs(self):
         """
@@ -1142,10 +1143,11 @@ class JadeAPI:
         if confidential is not None:
             params['confidential'] = confidential
 
-        return self._jadeRpc('get_receive_address', params)
+        return self._jadeRpc('get_receive_address', params, long_timeout=True)
 
     def sign_message(self, path, message, use_ae_signatures=False,
-                     ae_host_commitment=None, ae_host_entropy=None):
+                     ae_host_commitment=None, ae_host_entropy=None,
+                     network=None):
         """
         RPC call to format and sign the given message, using the given bip32 path.
         Supports RFC6979 and anti-exfil signatures.
@@ -1157,6 +1159,10 @@ class JadeAPI:
 
         message : str
             Message string to format and sign.
+
+        network : str, optional
+            Network on which to sign the message. When omitted, firmware default is used
+            (typically Bitcoin for backward compatibility).
 
         ae_host_commitment : 32-bytes, optional
             The host-commitment to use for Antil-Exfil signatures
@@ -1180,14 +1186,18 @@ class JadeAPI:
             # reply once the user confirms.
             # We can then request the actual signature passing the ae-entropy.
             params = {'path': path, 'message': message, 'ae_host_commitment': ae_host_commitment}
-            signer_commitment = self._jadeRpc('sign_message', params)
+            if network is not None:
+                params['network'] = network
+            signer_commitment = self._jadeRpc('sign_message', params, long_timeout=True)
             params = {'ae_host_entropy': ae_host_entropy}
-            signature = self._jadeRpc('get_signature', params)
+            signature = self._jadeRpc('get_signature', params, long_timeout=True)
             return signer_commitment, signature
         else:
             # Standard EC signature, simple case
             params = {'path': path, 'message': message}
-            return self._jadeRpc('sign_message', params)
+            if network is not None:
+                params['network'] = network
+            return self._jadeRpc('sign_message', params, long_timeout=True)
 
     def sign_message_file(self, message_file):
         """
@@ -1207,7 +1217,7 @@ class JadeAPI:
             base64-encoded RFC6979 signature
         """
         params = {'message_file': message_file}
-        return self._jadeRpc('sign_message', params)
+        return self._jadeRpc('sign_message', params, long_timeout=True)
 
     def get_identity_pubkey(self, identity, curve, key_type, index=0):
         """
@@ -1546,7 +1556,7 @@ class JadeAPI:
 
                 base_id += 1
                 input_id = str(base_id)
-                reply = self._jadeRpc('tx_input', txinput, input_id)
+                reply = self._jadeRpc('tx_input', txinput, input_id, long_timeout=True)
                 signer_commitments.append(reply)
 
             # Request the signatures one at a time, sending the entropy
@@ -1555,7 +1565,7 @@ class JadeAPI:
                 base_id += 1
                 sig_id = str(base_id)
                 params = {'ae_host_entropy': host_ae_entropy}
-                reply = self._jadeRpc('get_signature', params, sig_id)
+                reply = self._jadeRpc('get_signature', params, sig_id, long_timeout=True)
                 signatures.append(reply)
 
             assert len(signatures) == len(inputs)
@@ -1586,7 +1596,7 @@ class JadeAPI:
             # Receive all n signatures
             signatures = []
             for request in requests:
-                reply = self.jade.read_response()
+                reply = self.jade.read_response(long_timeout=True)
                 self.jade.validate_reply(request, reply)
                 signature = self._get_result_or_raise_error(reply)
                 signatures.append(signature)
@@ -1698,7 +1708,7 @@ class JadeAPI:
                   'asset_info': asset_info,
                   'additional_info': additional_info}
 
-        reply = self._jadeRpc('sign_liquid_tx', params, str(base_id))
+        reply = self._jadeRpc('sign_liquid_tx', params, str(base_id), long_timeout=True)
         assert reply
 
         # Send inputs and receive signatures
@@ -1770,7 +1780,7 @@ class JadeAPI:
                   'use_ae_signatures': use_ae_signatures,
                   'change': change}
 
-        reply = self._jadeRpc('sign_tx', params, str(base_id))
+        reply = self._jadeRpc('sign_tx', params, str(base_id), long_timeout=True)
         assert reply
 
         # Send inputs and receive signatures
@@ -1803,7 +1813,7 @@ class JadeAPI:
         # NOTE: we send 'get_extended_data' messages to request more 'chunks' of the reply data.
         psbt_out = bytearray()
         while True:
-            reply = self.jade.read_response()
+            reply = self.jade.read_response(long_timeout=True)
             self.jade.validate_reply(request, reply)
             psbt_out.extend(self._get_result_or_raise_error(reply))
 
@@ -2135,7 +2145,7 @@ class JadeInterface:
 
             # Unknown/unhandled/unexpected message
             logger.error("Unhandled message received")
-            device_logger.error(message)
+            device_logger.error('Type=%s Value=%r', type(message).__name__, message)
 
     def read_response(self, long_timeout=False):
         """
